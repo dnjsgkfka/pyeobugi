@@ -6,6 +6,7 @@ import { SettingsSchema, type Settings } from '@shared/schemas/settings'
 import { toKstIso } from '@shared/time'
 import { buildEvent } from './events'
 import { getQueue } from './queue'
+import { configurePosture } from './posture'
 import { SettingsStore } from './settings'
 
 let store: SettingsStore | null = null
@@ -28,7 +29,9 @@ export function registerOnboardingIpc(): void {
   ipcMain.handle(IPC.SETTINGS_UPDATE, (_event, patch: unknown) => {
     const parsed = SettingsSchema.partial().safeParse(patch)
     if (!parsed.success) return getSettings().value
-    return getSettings().update(parsed.data as Partial<Settings>)
+    const settings = getSettings().update(parsed.data as Partial<Settings>)
+    configurePosture() // 민감도가 바뀌면 판정 기준도 바뀐다
+    return settings
   })
 
   ipcMain.handle(IPC.CALIBRATION_SAVE, (_event, baseline: unknown, isRecalibration: unknown) => {
@@ -40,6 +43,7 @@ export function registerOnboardingIpc(): void {
       onboarded: true,
       baseline: { ...value, savedAt: toKstIso(new Date()) }
     })
+    configurePosture() // 새 기준으로 판정을 다시 시작한다
     // 기준값 자체는 보내지 않는다. 완료 사실만 기록한다.
     getQueue().enqueue(
       buildEvent('CALIBRATION_COMPLETED', { isRecalibration: isRecalibration === true })
