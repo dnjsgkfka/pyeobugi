@@ -1,5 +1,12 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import type { DetectorCommand, DetectorStatus, PostureSample } from '@shared/detector'
 import { IPC, type PreloadApi, type WindowName } from '@shared/ipc'
+
+function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
+  const handler = (_event: IpcRendererEvent, value: T): void => listener(value)
+  ipcRenderer.on(channel, handler)
+  return () => ipcRenderer.removeListener(channel, handler)
+}
 
 const api: PreloadApi = {
   app: {
@@ -8,6 +15,22 @@ const api: PreloadApi = {
   window: {
     show: (name: WindowName) => ipcRenderer.send(IPC.WINDOW_SHOW, name),
     hide: (name: WindowName) => ipcRenderer.send(IPC.WINDOW_HIDE, name)
+  },
+  camera: {
+    openSettings: () => ipcRenderer.send(IPC.CAMERA_OPEN_SETTINGS)
+  },
+  posture: {
+    start: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'start'),
+    stop: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'stop'),
+    getStatus: () => ipcRenderer.invoke(IPC.DETECTOR_GET_STATUS),
+    onSample: (listener: (sample: PostureSample) => void) =>
+      subscribe<PostureSample>(IPC.POSTURE_SAMPLE, listener),
+    onStatus: (listener: (status: DetectorStatus) => void) =>
+      subscribe<DetectorStatus>(IPC.DETECTOR_STATUS, listener),
+    onCommand: (listener: (command: DetectorCommand) => void) =>
+      subscribe<DetectorCommand>(IPC.DETECTOR_COMMAND, listener),
+    sendSample: (sample: PostureSample) => ipcRenderer.send(IPC.POSTURE_SAMPLE, sample),
+    sendStatus: (status: DetectorStatus) => ipcRenderer.send(IPC.DETECTOR_STATUS, status)
   }
 }
 
