@@ -3,12 +3,14 @@ import { PostureSampleSchema } from '@shared/detector'
 import { IPC } from '@shared/ipc'
 import { PostureEngine } from '@shared/posture-engine'
 import { PRESETS } from '@shared/posture'
+import { UsageTracker } from '@shared/usage'
 import { buildEvent } from './events'
 import { getSettings } from './onboarding'
 import { getQueue } from './queue'
 import { getWindow } from './windows'
 
 let engine: PostureEngine | null = null
+const usage = new UsageTracker()
 
 /** 설정(기준 자세, 민감도)을 읽어 엔진을 만든다. 기준이 없으면 판정하지 않는다. */
 export function configurePosture(): void {
@@ -24,6 +26,13 @@ export function configurePosture(): void {
 
 export function getPostureState(): string {
   return engine?.value ?? 'good'
+}
+
+/** 감지를 멈추거나(일시정지) 앱을 끌 때 — 남은 구간을 마감해 큐에 넣는다. */
+export function flushUsage(): void {
+  for (const segment of usage.flush(Date.now())) {
+    getQueue().enqueue(buildEvent('USAGE_SEGMENT', segment, new Date(segment.endedAt)))
+  }
 }
 
 /**
@@ -45,8 +54,17 @@ export function registerPostureIpc(): void {
     if (!engine) return
 
     const result = engine.push(parsed.data)
+    const queue = getQueue()
     if (result.enteredBad) {
-      getQueue().enqueue(buildEvent('POSTURE_BAD', { severity: result.enteredBad }))
+      queue.enqueue(buildEvent('POSTURE_BAD', { severity: result.enteredBad }))
+    }
+
+    // 사용 시간 집계. occurredAt 은 구간이 끝난 시각이어야 한다.
+    for (const segment of usage.update(Date.now(), {
+      face: parsed.data.face,
+      bad: result.state === 'bad'
+    })) {
+      queue.enqueue(buildEvent('USAGE_SEGMENT', segment, new Date(segment.endedAt)))
     }
     getWindow('app')?.webContents.send(IPC.POSTURE_STATE, result)
     getWindow('overlay')?.webContents.send(IPC.POSTURE_STATE, result)

@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { buildEvent } from './events'
+import { flushUsage } from './posture'
 import { getQueue } from './queue'
 import { markQuitting } from './windows'
 
@@ -14,6 +15,7 @@ export function startSession(): void {
 
 async function endSession(): Promise<void> {
   const queue = getQueue()
+  flushUsage() // 마지막 구간을 먼저 마감하고 나서 종료 이벤트
   queue.enqueue(buildEvent('SESSION_END', {}))
   // 종료를 오래 붙잡지 않는다. 실패하면 큐에 남아 다음 실행에서 전송된다.
   await Promise.race([

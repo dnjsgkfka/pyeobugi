@@ -1,6 +1,7 @@
 import { ipcMain, session, shell, type IpcMainEvent } from 'electron'
 import { isDetectorCommand, isDetectorStatus, type DetectorStatus } from '@shared/detector'
 import { IPC } from '@shared/ipc'
+import { flushUsage } from './posture'
 import { getWindow } from './windows'
 
 let status: DetectorStatus = 'idle'
@@ -12,8 +13,10 @@ function fromDetector(event: IpcMainEvent): boolean {
 /** detector ↔ app 사이의 중계. 샘플은 이 안에서만 돌고 이벤트 큐/서버로 가지 않는다. */
 export function registerDetectorIpc(): void {
   ipcMain.on(IPC.DETECTOR_COMMAND, (_event, command: unknown) => {
-    if (isDetectorCommand(command))
-      getWindow('detector')?.webContents.send(IPC.DETECTOR_COMMAND, command)
+    if (!isDetectorCommand(command)) return
+    // 감지를 멈추면 쌓이던 구간을 마감한다 (일시정지 / 타이머 종료)
+    if (command === 'stop') flushUsage()
+    getWindow('detector')?.webContents.send(IPC.DETECTOR_COMMAND, command)
   })
 
   ipcMain.on(IPC.DETECTOR_STATUS, (event, next: unknown) => {
