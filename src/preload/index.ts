@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import type { Baseline } from '@shared/calibration'
 import type { DetectorCommand, DetectorStatus, PostureSample } from '@shared/detector'
+import type { Settings } from '@shared/schemas/settings'
 import { IPC, type PreloadApi, type WindowName } from '@shared/ipc'
 
 function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
@@ -18,6 +20,12 @@ const api: PreloadApi = {
   },
   camera: {
     openSettings: () => ipcRenderer.send(IPC.CAMERA_OPEN_SETTINGS)
+  },
+  settings: {
+    get: () => ipcRenderer.invoke(IPC.SETTINGS_GET),
+    update: (patch: Partial<Settings>) => ipcRenderer.invoke(IPC.SETTINGS_UPDATE, patch),
+    saveCalibration: (baseline: Baseline, isRecalibration: boolean) =>
+      ipcRenderer.invoke(IPC.CALIBRATION_SAVE, baseline, isRecalibration)
   },
   posture: {
     start: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'start'),

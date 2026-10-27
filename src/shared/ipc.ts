@@ -1,4 +1,6 @@
+import type { Baseline } from './calibration'
 import type { DetectorCommand, DetectorStatus, PostureSample } from './detector'
+import type { Settings } from './schemas/settings'
 
 /** main / preload / renderer 가 함께 쓰는 IPC 채널과 타입. 채널 문자열은 여기서만 정의한다. */
 
@@ -20,7 +22,11 @@ export const IPC = {
   DETECTOR_GET_STATUS: 'detector:get-status',
   /** detector → main → app: 자세 샘플 (서버로 보내지 않음) */
   POSTURE_SAMPLE: 'posture:sample',
-  CAMERA_OPEN_SETTINGS: 'camera:open-settings'
+  CAMERA_OPEN_SETTINGS: 'camera:open-settings',
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_UPDATE: 'settings:update',
+  /** 기준 자세 저장 + CALIBRATION_COMPLETED 이벤트 */
+  CALIBRATION_SAVE: 'calibration:save'
 } as const
 
 /** preload 가 renderer 에 노출하는 `window.api` 의 모양 */
@@ -35,6 +41,12 @@ export interface PreloadApi {
   camera: {
     /** Windows 설정 > 개인정보 > 카메라를 연다 */
     openSettings: () => void
+  }
+  settings: {
+    get: () => Promise<Settings>
+    update: (patch: Partial<Settings>) => Promise<Settings>
+    /** 기준 자세를 저장하고 온보딩을 끝낸 것으로 표시한다 */
+    saveCalibration: (baseline: Baseline, isRecalibration: boolean) => Promise<Settings>
   }
   posture: {
     /** app → detector: 감지 시작/정지 */
