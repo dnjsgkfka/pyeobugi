@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Button } from '../ui/Button'
-import { Dialog } from '../ui/Dialog'
-import { Slider3, type Step } from '../ui/Slider3'
-import { SpeechBubble } from '../ui/SpeechBubble'
-import { Spinner } from '../ui/Spinner'
-import { StatCard } from '../ui/StatCard'
-import { StateBadge } from '../ui/Surface'
+import { Button } from '@renderer/ui/Button'
+import { Dialog } from '@renderer/ui/Dialog'
+import { Slider3, type Step } from '@renderer/ui/Slider3'
+import { SpeechBubble } from '@renderer/ui/SpeechBubble'
+import { Spinner } from '@renderer/ui/Spinner'
+import { StatCard } from '@renderer/ui/StatCard'
+import { StateBadge } from '@renderer/ui/Surface'
 import {
   IconChevron,
   IconPause,
@@ -18,9 +18,9 @@ import {
   IconStop,
   LogoFull,
   LogoSymbol
-} from '../ui/icons'
-import { Toggle } from '../ui/Toggle'
-import { STATE_STYLE, barTone, type PostureState } from '../ui/state'
+} from '@renderer/ui/icons'
+import { Toggle } from '@renderer/ui/Toggle'
+import { STATE_STYLE, barTone, type PostureState } from '@renderer/ui/state'
 
 function Section({
   title,
