@@ -1,0 +1,85 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+@theme inline {
+  --color-main1: var(--c-main1);
+  --color-main2: var(--c-main2);
+  --color-main3: var(--c-main3);
+  --color-main4: var(--c-main4);
+  --color-main5: var(--c-main5);
+  --color-grey-100: var(--c-grey-100);
+  --color-grey-200: var(--c-grey-200);
+  --color-grey-300: var(--c-grey-300);
+  --color-grey-500: var(--c-grey-500);
+  --color-grey-700: var(--c-grey-700);
+  --color-grey-900: var(--c-grey-900);
+  --color-white: var(--c-white);
+  --color-black: var(--c-black);
+  --color-scrim: var(--c-scrim);
+
+  --shadow-card: var(--shadow-card);
+
+  --font-sans: var(--font-body);
+  --font-logo: var(--font-logo);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+}
+
+@utility text-display {
+  font-size: 40px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+}
+@utility text-title {
+  font-size: 34px;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+}
+@utility text-heading {
+  font-size: 24px;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+@utility text-body {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+@utility text-body-b {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+@utility text-label {
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+@utility text-label-b {
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+@utility text-caption {
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  font-family: var(--font-body);
+  background: var(--c-main5);
+  color: var(--c-grey-900);
+}

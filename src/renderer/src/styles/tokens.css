@@ -1,0 +1,30 @@
+/* 디자인 토큰 — hex 값은 이 파일에서만 허용 (pnpm hex 로 검사). Figma "펴부기" 기준, 라이트 전용. */
+:root {
+  --c-main1: #16202f;
+  --c-main2: #2a3747;
+  --c-main3: #74abb4;
+  --c-main4: #d3ecee;
+  --c-main5: #eef3f3;
+
+  --c-grey-100: #f3f5f8;
+  --c-grey-200: #e3e7ec;
+  --c-grey-300: #d0d5dc;
+  --c-grey-500: #7d8590;
+  --c-grey-700: #5b636e;
+  --c-grey-900: #2d333b;
+
+  --c-white: #ffffff;
+  --c-black: #000000;
+  --c-scrim: rgba(22, 32, 47, 0.8);
+
+  --shadow-card: 4px 4px 16px 0 rgba(26, 40, 46, 0.05);
+
+  --font-body: 'Pretendard', 'Malgun Gothic', system-ui, sans-serif;
+  --font-logo: 'neurimbo Gothic', 'Pretendard', sans-serif;
+
+  --radius-xs: 2px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 100px;
+}
