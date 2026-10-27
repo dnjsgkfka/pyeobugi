@@ -2,8 +2,10 @@ import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { initApi } from './api'
 import { registerIpc } from './ipc'
+import { initQueue } from './queue'
+import { registerShutdown, startSession } from './session'
 import { createTray } from './tray'
-import { createWindows, markQuitting, showWindow } from './windows'
+import { createWindows, showWindow } from './windows'
 
 // 단일 인스턴스: 두 번째 실행은 바로 종료하고, 기존 앱 창을 앞으로 가져온다.
 if (!app.requestSingleInstanceLock()) {
@@ -19,6 +21,8 @@ if (!app.requestSingleInstanceLock()) {
     })
 
     await initApi()
+    initQueue()
+    startSession()
     registerIpc()
     createWindows()
     createTray()
@@ -28,7 +32,7 @@ if (!app.requestSingleInstanceLock()) {
     })
   })
 
-  app.on('before-quit', () => markQuitting())
+  registerShutdown()
 
   // 창을 닫아도(=숨김) 트레이에 남아야 하므로 window-all-closed 에서 종료하지 않는다.
   app.on('window-all-closed', () => {})
