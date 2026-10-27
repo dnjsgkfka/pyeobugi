@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { initApi } from './api'
 import { registerIpc } from './ipc'
 import { createTray } from './tray'
 import { createWindows, markQuitting, showWindow } from './windows'
@@ -10,13 +11,14 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', () => showWindow('app'))
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.turtle.app')
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
 
+    await initApi()
     registerIpc()
     createWindows()
     createTray()
