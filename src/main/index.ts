@@ -1,11 +1,21 @@
 import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { initApi } from './api'
+import { registerCameraPermissions, registerDetectorIpc } from './detector'
 import { registerIpc } from './ipc'
 import { initQueue } from './queue'
 import { registerShutdown, startSession } from './session'
 import { createTray } from './tray'
 import { createWindows, showWindow } from './windows'
+
+/**
+ * Windows 에서 Chromium 의 기본 캡처 경로(Media Foundation)가 카메라를 못 여는 장치가 있다
+ * (AbortError: Timeout starting video source). 예전 방식(DirectShow)으로 돌린다.
+ * app.whenReady() 보다 먼저 호출해야 한다.
+ */
+if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('disable-features', 'MediaFoundationVideoCapture')
+}
 
 // 단일 인스턴스: 두 번째 실행은 바로 종료하고, 기존 앱 창을 앞으로 가져온다.
 if (!app.requestSingleInstanceLock()) {
@@ -24,6 +34,8 @@ if (!app.requestSingleInstanceLock()) {
     initQueue()
     startSession()
     registerIpc()
+    registerDetectorIpc()
+    registerCameraPermissions()
     createWindows()
     createTray()
 

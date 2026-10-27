@@ -57,14 +57,33 @@ function createApp(): BrowserWindow {
   return win
 }
 
-/** 카메라 + 자세 추론 전용. 화면에 보이지 않지만 계속 돌아야 하므로 throttling 을 끈다. */
+/**
+ * 카메라 + 자세 추론 전용.
+ * 사용자에게 보이지 않아야 하지만, 한 번도 보여지지 않은 창에서는 Windows 가 카메라를
+ * 열어주지 않는다(AbortError: Timeout starting video source). 그래서 숨기는 대신
+ * 화면 밖으로 치워 두고 띄운다. 작업 표시줄에도 뜨지 않고 포커스도 가져가지 않는다.
+ */
+const OFFSCREEN = -4000
+
 function createDetector(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 640,
-    height: 480,
+    x: OFFSCREEN,
+    y: OFFSCREEN,
+    width: 320,
+    height: 240,
     show: false,
+    frame: false,
     skipTaskbar: true,
+    focusable: false,
     webPreferences: webPreferences({ backgroundThrottling: false })
+  })
+  win.on('ready-to-show', () => {
+    win.showInactive()
+    win.setPosition(OFFSCREEN, OFFSCREEN)
+  })
+  // 숨은 창이라 DevTools 를 열어볼 수 없다 → 로그를 main 터미널로 넘긴다
+  win.webContents.on('console-message', (event) => {
+    console.log(`[detector] ${event.message}`)
   })
   hideOnClose(win)
   loadPage(win, 'detector')
