@@ -1,4 +1,5 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import DevDetector from './screens/DevDetector'
 import DevGallery from './screens/DevGallery'
 import Placeholder from './screens/Placeholder'
 
@@ -11,6 +12,7 @@ function App(): React.JSX.Element {
           <Route path="/report" element={<Placeholder title="자세 리포트" />} />
           <Route path="/settings" element={<Placeholder title="설정" />} />
           <Route path="/dev/gallery" element={<DevGallery />} />
+          <Route path="/dev/detector" element={<DevDetector />} />
           <Route path="*" element={<Navigate to="/report" replace />} />
         </Routes>
       </div>

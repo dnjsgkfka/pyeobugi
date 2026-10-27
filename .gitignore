@@ -4,3 +4,6 @@ out
 .DS_Store
 .eslintcache
 *.log*
+
+# MediaPipe 모델과 wasm (pnpm mediapipe 로 받는다)
+src/renderer/public/mediapipe/

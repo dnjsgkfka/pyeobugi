@@ -17,6 +17,7 @@ export default defineConfig({
   preload: { resolve: { alias: { '@shared': shared } } },
   renderer: {
     root: resolve('src/renderer'),
+    publicDir: resolve('src/renderer/public'),
     resolve: { alias: { '@renderer': resolve('src/renderer'), '@shared': shared } },
     plugins: [react(), tailwindcss()],
     build: {
