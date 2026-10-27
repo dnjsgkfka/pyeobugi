@@ -1,0 +1,252 @@
+/* 온보딩 */
+#frame {
+  /* 원본은 --main1 같은 이름을 쓴다. 우리 토큰(tokens.css)과 이어 준다. */
+  --main1: var(--c-main1);
+  --main2: var(--c-main2);
+  --main3: var(--c-main3);
+  --main4: var(--c-main4);
+  --main5: var(--c-main5);
+  --grey-900: var(--c-grey-900);
+  --grey-700: var(--c-grey-700);
+  --grey-300: var(--c-grey-300);
+  --white: var(--c-white);
+  position: relative;
+  overflow: hidden;
+}
+#stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 832px;
+  transform-origin: 0 0;
+  overflow: hidden;
+  background: var(--main1);
+}
+.abs {
+  position: absolute;
+}
+svg {
+  display: block;
+}
+#bg {
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 832px;
+}
+#bigLogo {
+  left: 217px;
+  top: -136px;
+  width: 846px;
+  height: 520px;
+}
+#laptop {
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 832px;
+  transform: translateY(293px);
+}
+#glow {
+  left: 42px;
+  top: 24px;
+  width: 1196px;
+  height: 1069px;
+}
+.turtle {
+  left: 430.13px;
+  top: -4px;
+  width: 420px;
+  height: 420px;
+  transform-origin: 209.87px 75%;
+  pointer-events: none;
+}
+#turtleFront .t-head,
+#turtleFront .t-flips {
+  pointer-events: none;
+}
+#turtleFront .t-head svg g,
+#turtleFront .t-flips g {
+  pointer-events: visiblePainted;
+  cursor: pointer;
+}
+.turtle .t-body {
+  transform-box: view-box;
+  transform-origin: 210px 318px;
+}
+#turtleFront > svg {
+  position: absolute;
+  inset: 0;
+}
+.turtle .t-flips {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 75.7%;
+}
+.turtle .t-headbob,
+.turtle .t-head {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 71.4%;
+  will-change: transform;
+}
+.turtle .t-head svg {
+  position: absolute;
+  inset: 0;
+}
+.turtle .t-shell {
+  transform-box: view-box;
+  transform-origin: 210px 300px;
+}
+.turtle .t-look {
+  transform-box: view-box;
+  transform-origin: 210px 228px;
+}
+.turtle .t-blink {
+  transform-box: fill-box;
+  transform-origin: 50% 55%;
+}
+.turtle .t-fl-l {
+  transform-box: fill-box;
+  transform-origin: 80% 15%;
+}
+.turtle .t-fl-r {
+  transform-box: fill-box;
+  transform-origin: 20% 15%;
+}
+.turtle .t-closed {
+  opacity: 0;
+}
+#screen {
+  left: 123px;
+  top: 257px;
+  width: 1034px;
+  height: 686px;
+  background: var(--main5);
+  border: 17.6727px solid var(--main1);
+  border-radius: 26.5px;
+  overflow: hidden;
+}
+#sheen {
+  left: -10px;
+  top: -8px;
+  width: 1016px;
+  height: 477px;
+  background: rgba(196, 255, 249, 0.2);
+  filter: blur(24px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+#notch {
+  left: calc(50% - 59.95px);
+  top: -17.7px;
+  width: 119.9px;
+  height: 40.3px;
+  border-radius: 4.4px;
+  background: var(--main1);
+}
+.screen-pad {
+  left: -18px;
+  top: -17px;
+  padding: 110px 64px;
+  width: 1033px;
+}
+#screenFill {
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--main1);
+  opacity: 0;
+  pointer-events: none;
+}
+.display {
+  font-size: 40px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+  margin: 0;
+  color: var(--grey-900);
+}
+.body16 {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  margin: 0;
+}
+#loadingText .dot {
+  display: inline-block;
+}
+#startContent {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  pointer-events: none;
+}
+#startContent > * {
+  opacity: 0;
+}
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.intro .body16 {
+  color: var(--grey-700);
+}
+.points {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.points li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--grey-900);
+}
+.num {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--grey-900);
+  border-radius: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.btn {
+  appearance: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  height: 44px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+}
+.btn-primary {
+  background: var(--main2);
+  color: var(--main5);
+}
+.btn-primary:hover {
+  background: var(--c-main2);
+  filter: brightness(1.25);
+}
+.btn:focus-visible {
+  outline: 3px solid var(--main3);
+  outline-offset: 3px;
+}
+#startBtn {
+  width: 200px;
+}
