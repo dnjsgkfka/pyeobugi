@@ -81,8 +81,12 @@ function createDetector(): BrowserWindow {
     win.showInactive()
     win.setPosition(OFFSCREEN, OFFSCREEN)
   })
+  // MediaPipe 가 구글로 사용 기록을 보내려다 CSP 에 막히며 남기는 소음.
+  // 막히는 게 맞는 동작이라 로그만 걸러낸다.
+  const NOISE = /odml\.pa\.googleapis\.com/
   // 숨은 창이라 DevTools 를 열어볼 수 없다 → 로그를 main 터미널로 넘긴다
   win.webContents.on('console-message', (event) => {
+    if (NOISE.test(event.message)) return
     console.log(`[detector] ${event.message}`)
   })
   hideOnClose(win)
