@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { Baseline } from '@shared/calibration'
 import type { DetectorCommand, DetectorStatus, PostureSample } from '@shared/detector'
+import type { PostureResult } from '@shared/posture-engine'
 import type { Settings } from '@shared/schemas/settings'
 import { IPC, type PreloadApi, type WindowName } from '@shared/ipc'
 
@@ -35,6 +36,8 @@ const api: PreloadApi = {
       subscribe<PostureSample>(IPC.POSTURE_SAMPLE, listener),
     onStatus: (listener: (status: DetectorStatus) => void) =>
       subscribe<DetectorStatus>(IPC.DETECTOR_STATUS, listener),
+    onState: (listener: (result: PostureResult) => void) =>
+      subscribe<PostureResult>(IPC.POSTURE_STATE, listener),
     onCommand: (listener: (command: DetectorCommand) => void) =>
       subscribe<DetectorCommand>(IPC.DETECTOR_COMMAND, listener),
     sendSample: (sample: PostureSample) => ipcRenderer.send(IPC.POSTURE_SAMPLE, sample),

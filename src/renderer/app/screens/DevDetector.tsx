@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DetectorStatus, PostureSample } from '@shared/detector'
+import type { PostureResult } from '@shared/posture-engine'
 import { Button } from '@renderer/ui/Button'
 
 const STATUS_TEXT: Record<DetectorStatus, string> = {
@@ -23,6 +24,7 @@ function Row({ label, value }: { label: string; value: string }): React.JSX.Elem
 export default function DevDetector(): React.JSX.Element {
   const [status, setStatus] = useState<DetectorStatus>('idle')
   const [sample, setSample] = useState<PostureSample | null>(null)
+  const [posture, setPosture] = useState<PostureResult | null>(null)
   const [fps, setFps] = useState(0)
   // 렌더 중에는 performance.now() 를 부르지 않는다 (react-hooks/purity) → useEffect 에서 채운다
   const counter = useRef({ frames: 0, since: 0 })
@@ -31,6 +33,7 @@ export default function DevDetector(): React.JSX.Element {
     counter.current.since = performance.now()
     void window.api.posture.getStatus().then(setStatus)
     const offStatus = window.api.posture.onStatus(setStatus)
+    const offState = window.api.posture.onState(setPosture)
     const offSample = window.api.posture.onSample((next) => {
       setSample(next)
       const c = counter.current
@@ -44,6 +47,7 @@ export default function DevDetector(): React.JSX.Element {
     })
     return () => {
       offStatus()
+      offState()
       offSample()
     }
   }, [])
@@ -82,6 +86,11 @@ export default function DevDetector(): React.JSX.Element {
           value={sample?.size != null ? sample.size.toFixed(3) : '-'}
         />
         <Row label="fps" value={String(fps)} />
+        <Row label="판정" value={posture ? posture.state : '-'} />
+        <Row
+          label="확정까지"
+          value={posture?.state === 'slipping' ? `${Math.round(posture.progress * 100)}%` : '-'}
+        />
       </div>
 
       <p className="text-label text-grey-500">

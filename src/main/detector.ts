@@ -1,10 +1,5 @@
 import { ipcMain, session, shell, type IpcMainEvent } from 'electron'
-import {
-  isDetectorCommand,
-  isDetectorStatus,
-  PostureSampleSchema,
-  type DetectorStatus
-} from '@shared/detector'
+import { isDetectorCommand, isDetectorStatus, type DetectorStatus } from '@shared/detector'
 import { IPC } from '@shared/ipc'
 import { getWindow } from './windows'
 
@@ -28,12 +23,6 @@ export function registerDetectorIpc(): void {
   })
 
   ipcMain.handle(IPC.DETECTOR_GET_STATUS, () => status)
-
-  ipcMain.on(IPC.POSTURE_SAMPLE, (event, raw: unknown) => {
-    if (!fromDetector(event)) return
-    const parsed = PostureSampleSchema.safeParse(raw)
-    if (parsed.success) getWindow('app')?.webContents.send(IPC.POSTURE_SAMPLE, parsed.data)
-  })
 
   ipcMain.on(IPC.CAMERA_OPEN_SETTINGS, () => {
     if (process.platform === 'win32') void shell.openExternal('ms-settings:privacy-webcam')
