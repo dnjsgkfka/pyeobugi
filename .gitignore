@@ -5,5 +5,6 @@ out
 .eslintcache
 *.log*
 
-# MediaPipe 모델과 wasm (pnpm mediapipe 로 받는다)
+# 런타임 에셋 (pnpm assets 로 받는다)
 src/renderer/public/mediapipe/
+src/renderer/public/fonts/

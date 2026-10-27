@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 // tokens.css 밖에서 색을 직접 쓰면 실패한다. (hex / rgb / hsl)
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 const ROOT = 'src/renderer'
-const ALLOW = ['tokens.css']
+// 예외: 토큰 파일과, 디자이너가 준 그림을 그대로 담은 파일
+const ALLOW = ['tokens.css', 'onboarding/intro-stage.ts', 'onboarding/intro.css']
 const RE = /(?<![\w&])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b|\b(?:rgba?|hsla?)\(/
 
 function* walk(dir) {
@@ -17,7 +18,8 @@ function* walk(dir) {
 
 let bad = 0
 for (const file of walk(ROOT)) {
-  if (ALLOW.some((a) => file.endsWith(a))) continue
+  const normalized = file.split(sep).join('/')
+  if (ALLOW.some((a) => normalized.endsWith(a))) continue
   readFileSync(file, 'utf8')
     .split('\n')
     .forEach((line, i) => {
