@@ -61,7 +61,9 @@ export interface ApiClientOptions {
 type Raw = { type: 'network' } | { type: 'http'; status: number; body: unknown }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
-  const { baseUrl, deviceId, fetchImpl = fetch, timeoutMs = 10_000 } = options
+  const { baseUrl, deviceId, timeoutMs = 10_000 } = options
+  // 만들 때의 fetch 를 붙잡지 않고 호출할 때마다 현재 전역 fetch 를 쓴다 (mock 이 나중에 가로채도 동작)
+  const fetchImpl: typeof fetch = options.fetchImpl ?? ((input, init) => fetch(input, init))
   const onError =
     options.onError ?? ((message, info): void => console.error(`[api] ${message}`, info ?? ''))
 
