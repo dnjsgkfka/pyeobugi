@@ -24,9 +24,11 @@ export default function DevDetector(): React.JSX.Element {
   const [status, setStatus] = useState<DetectorStatus>('idle')
   const [sample, setSample] = useState<PostureSample | null>(null)
   const [fps, setFps] = useState(0)
-  const counter = useRef({ frames: 0, since: performance.now() })
+  // 렌더 중에는 performance.now() 를 부르지 않는다 (react-hooks/purity) → useEffect 에서 채운다
+  const counter = useRef({ frames: 0, since: 0 })
 
   useEffect(() => {
+    counter.current.since = performance.now()
     void window.api.posture.getStatus().then(setStatus)
     const offStatus = window.api.posture.onStatus(setStatus)
     const offSample = window.api.posture.onSample((next) => {
