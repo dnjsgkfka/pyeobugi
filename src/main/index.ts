@@ -3,6 +3,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { initApi } from './api'
 import { registerCameraPermissions, registerDetectorIpc } from './detector'
 import { registerIpc } from './ipc'
+import { initSettings, registerOnboardingIpc } from './onboarding'
 import { initQueue } from './queue'
 import { registerShutdown, startSession } from './session'
 import { createTray } from './tray'
@@ -33,7 +34,9 @@ if (!app.requestSingleInstanceLock()) {
     await initApi()
     initQueue()
     startSession()
+    initSettings()
     registerIpc()
+    registerOnboardingIpc()
     registerDetectorIpc()
     registerCameraPermissions()
     createWindows()
