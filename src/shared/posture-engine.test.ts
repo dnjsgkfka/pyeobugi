@@ -195,7 +195,7 @@ describe('깜빡임 방지 (진입과 복귀 기준이 다름)', () => {
   it('복귀 기준 아래로 내려오면 복귀한다', () => {
     const e = engine()
     const a = feed(e, 4_000, SLOUCH)
-    const b = feed(e, 2_500, { from: a.until, pitch: T.pitchDeltaDeg * 0.7 })
+    feed(e, 2_500, { from: a.until, pitch: T.pitchDeltaDeg * 0.7 })
     expect(e.value).toBe('good')
   })
 
