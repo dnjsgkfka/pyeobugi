@@ -39,11 +39,17 @@ function hideOnClose(win: BrowserWindow): void {
 
 function createApp(): BrowserWindow {
   const win = new BrowserWindow({
+    // 디자인(1280×832)은 내용 영역 기준이다. useContentSize 가 없으면
+    // 창 테두리·타이틀바만큼 내용이 줄어 스크롤이 생긴다.
+    useContentSize: true,
     width: 1280,
     height: 832,
+    // 디자인에 타이틀바가 없다 → 테두리 없는 창.
+    // 둥근 모서리는 Windows 11 이 알아서 그려 준다 (Win10 은 각진 모서리).
+    frame: false,
+    resizable: false,
     show: false,
     title: '펴부기',
-    autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: webPreferences()
   })
