@@ -5,6 +5,7 @@ import { registerCameraPermissions, registerDetectorIpc } from './detector'
 import { registerIpc } from './ipc'
 import { initSettings, registerOnboardingIpc } from './onboarding'
 import { configurePosture, registerPostureIpc } from './posture'
+import { initReport, registerReportIpc } from './report'
 import { initQueue } from './queue'
 import { registerShutdown, startSession } from './session'
 import { createTray } from './tray'
@@ -40,6 +41,8 @@ if (!app.requestSingleInstanceLock()) {
     registerOnboardingIpc()
     registerDetectorIpc()
     registerPostureIpc()
+    initReport()
+    registerReportIpc()
     configurePosture()
     registerCameraPermissions()
     createWindows()

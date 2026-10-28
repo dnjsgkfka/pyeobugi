@@ -14,7 +14,7 @@ export default function Settings(): React.JSX.Element {
   }, [])
 
   return (
-    <main className="mx-auto flex max-w-244 flex-col gap-5 p-10">
+    <>
       <h1 className="text-title text-grey-900">설정</h1>
 
       <section className="flex flex-col gap-6 rounded-lg bg-white p-4 shadow-card">
@@ -35,6 +35,6 @@ export default function Settings(): React.JSX.Element {
           </span>
         )}
       </section>
-    </main>
+    </>
   )
 }

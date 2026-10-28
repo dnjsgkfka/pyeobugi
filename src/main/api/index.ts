@@ -12,6 +12,8 @@ export async function initApi(): Promise<ApiClient> {
     const { startMock } = await import('../mock/server')
     startMock(MOCK_SCENARIO)
   }
+  const { registerMockIpc } = await import('../mock/ipc')
+  registerMockIpc(MOCK_SCENARIO)
   const deviceId = loadOrCreateDeviceId(app.getPath('userData'))
   client = createApiClient({ baseUrl: API_BASE_URL, deviceId })
   return client

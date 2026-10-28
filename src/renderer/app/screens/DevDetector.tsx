@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { DetectorStatus, PostureSample } from '@shared/detector'
 import type { PostureResult } from '@shared/posture-engine'
 import { Button } from '@renderer/ui/Button'
@@ -28,6 +29,7 @@ export default function DevDetector(): React.JSX.Element {
   const [fps, setFps] = useState(0)
   // 렌더 중에는 performance.now() 를 부르지 않는다 (react-hooks/purity) → useEffect 에서 채운다
   const counter = useRef({ frames: 0, since: 0 })
+  const navigate = useNavigate()
 
   useEffect(() => {
     counter.current.since = performance.now()
@@ -91,6 +93,13 @@ export default function DevDetector(): React.JSX.Element {
           label="확정까지"
           value={posture?.state === 'slipping' ? `${Math.round(posture.progress * 100)}%` : '-'}
         />
+      </div>
+
+      <div className="flex gap-2">
+        <Button onClick={() => navigate('/report')}>리포트로 가기</Button>
+        <Button variant="secondary" onClick={() => navigate('/dev/mock')}>
+          mock 시나리오
+        </Button>
       </div>
 
       <p className="text-label text-grey-500">

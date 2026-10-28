@@ -14,7 +14,7 @@ export function StatCard({
   note: string
 }): React.JSX.Element {
   return (
-    <div className="flex h-35 w-59.25 flex-col justify-between rounded-lg bg-white px-4 py-5 shadow-card">
+    <div className="flex h-35 flex-1 flex-col justify-between rounded-lg bg-white px-4 py-5 shadow-card">
       <span className="text-body-b h-4 text-grey-900">{title}</span>
       <div className="flex flex-col gap-2">
         <div className="flex gap-2">
