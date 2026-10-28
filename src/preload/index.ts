@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { Baseline } from '@shared/calibration'
 import type { DetectorCommand, DetectorStatus, PostureSample } from '@shared/detector'
 import type { PostureResult } from '@shared/posture-engine'
+import type { ReportView } from '@shared/report'
 import type { Settings } from '@shared/schemas/settings'
 import { IPC, type PreloadApi, type WindowName } from '@shared/ipc'
 
@@ -27,6 +28,14 @@ const api: PreloadApi = {
     update: (patch: Partial<Settings>) => ipcRenderer.invoke(IPC.SETTINGS_UPDATE, patch),
     saveCalibration: (baseline: Baseline, isRecalibration: boolean) =>
       ipcRenderer.invoke(IPC.CALIBRATION_SAVE, baseline, isRecalibration)
+  },
+  report: {
+    get: (date?: string): Promise<ReportView> => ipcRenderer.invoke(IPC.REPORT_GET, date),
+    recordedDates: (): Promise<string[]> => ipcRenderer.invoke(IPC.REPORT_RECORDED_DATES)
+  },
+  mock: {
+    getScenario: () => ipcRenderer.invoke(IPC.MOCK_GET_SCENARIO),
+    setScenario: (scenario: string) => ipcRenderer.invoke(IPC.MOCK_SET_SCENARIO, scenario)
   },
   posture: {
     start: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'start'),

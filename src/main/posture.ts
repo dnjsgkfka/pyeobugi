@@ -28,11 +28,17 @@ export function getPostureState(): string {
   return engine?.value ?? 'good'
 }
 
-/** 감지를 멈추거나(일시정지) 앱을 끌 때 — 남은 구간을 마감해 큐에 넣는다. */
-export function flushUsage(): void {
-  for (const segment of usage.flush(Date.now())) {
+/**
+ * 감지를 멈추거나(일시정지) 앱을 끌 때, 그리고 리포트를 열기 직전에
+ * 쌓이던 구간을 마감해 큐에 넣는다.
+ * @returns 마감한 구간 수
+ */
+export function flushUsage(): number {
+  const segments = usage.flush(Date.now())
+  for (const segment of segments) {
     getQueue().enqueue(buildEvent('USAGE_SEGMENT', segment, new Date(segment.endedAt)))
   }
+  return segments.length
 }
 
 /**

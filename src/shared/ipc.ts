@@ -1,6 +1,7 @@
 import type { Baseline } from './calibration'
 import type { DetectorCommand, DetectorStatus, PostureSample } from './detector'
 import type { PostureResult } from './posture-engine'
+import type { ReportView } from './report'
 import type { Settings } from './schemas/settings'
 
 /** main / preload / renderer 가 함께 쓰는 IPC 채널과 타입. 채널 문자열은 여기서만 정의한다. */
@@ -29,7 +30,14 @@ export const IPC = {
   /** 기준 자세 저장 + CALIBRATION_COMPLETED 이벤트 */
   CALIBRATION_SAVE: 'calibration:save',
   /** main → app/overlay: 판정 결과 (good / slipping / bad / away) */
-  POSTURE_STATE: 'posture:state'
+  POSTURE_STATE: 'posture:state',
+  /** 리포트 조회 (구간 마감 → 큐 flush → GET 순서로 처리된다) */
+  REPORT_GET: 'report:get',
+  /** 기록이 있는 날짜들 (캘린더 표시용) */
+  REPORT_RECORDED_DATES: 'report:recorded-dates',
+  /** 개발용: mock 시나리오 바꾸기 */
+  MOCK_SET_SCENARIO: 'mock:set-scenario',
+  MOCK_GET_SCENARIO: 'mock:get-scenario'
 } as const
 
 /** preload 가 renderer 에 노출하는 `window.api` 의 모양 */
@@ -50,6 +58,17 @@ export interface PreloadApi {
     update: (patch: Partial<Settings>) => Promise<Settings>
     /** 기준 자세를 저장하고 온보딩을 끝낸 것으로 표시한다 */
     saveCalibration: (baseline: Baseline, isRecalibration: boolean) => Promise<Settings>
+  }
+  report: {
+    /** @param date `YYYY-MM-DD` (KST). 생략하면 오늘 */
+    get: (date?: string) => Promise<ReportView>
+    /** 기록이 있는 날짜 `YYYY-MM-DD` 목록 */
+    recordedDates: () => Promise<string[]>
+  }
+  /** 개발용. mock 이 꺼져 있으면 아무 일도 하지 않는다 */
+  mock: {
+    getScenario: () => Promise<string | null>
+    setScenario: (scenario: string) => Promise<string | null>
   }
   posture: {
     /** app → detector: 감지 시작/정지 */
