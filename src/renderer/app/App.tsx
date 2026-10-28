@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import type { Settings as SettingsValue } from '@shared/schemas/settings'
+import AppLayout from './AppLayout'
 import DevDetector from './screens/DevDetector'
 import DevGallery from './screens/DevGallery'
+import DevMock from './screens/DevMock'
 import Loading from './screens/Loading'
-import Placeholder from './screens/Placeholder'
+import Report from './screens/report/Report'
 import Settings from './screens/Settings'
 import Calibrate from './screens/onboarding/Calibrate'
 import Intro from './screens/onboarding/Intro'
@@ -26,7 +28,7 @@ function App(): React.JSX.Element {
 
   return (
     <HashRouter>
-      <div className="h-full bg-main5">
+      <div className="h-full">
         <Routes>
           <Route path="/" element={<Start onboarded={settings.onboarded} />} />
           <Route path="/onboarding" element={<Intro />} />
@@ -34,10 +36,14 @@ function App(): React.JSX.Element {
           <Route path="/onboarding/calibrate" element={<Calibrate />} />
           {/* 설정에서 기준을 다시 잡을 때 */}
           <Route path="/recalibrate" element={<Calibrate />} />
-          <Route path="/report" element={<Placeholder title="자세 리포트" />} />
-          <Route path="/settings" element={<Settings />} />
+          {/* 사이드바가 있는 화면들 */}
+          <Route element={<AppLayout />}>
+            <Route path="/report" element={<Report />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
           <Route path="/dev/gallery" element={<DevGallery />} />
           <Route path="/dev/detector" element={<DevDetector />} />
+          <Route path="/dev/mock" element={<DevMock />} />
           <Route path="*" element={<Start onboarded={settings.onboarded} />} />
         </Routes>
       </div>
