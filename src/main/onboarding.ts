@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
 import type { Baseline } from '@shared/calibration'
 import { IPC } from '@shared/ipc'
@@ -13,6 +13,8 @@ let store: SettingsStore | null = null
 
 export function initSettings(): SettingsStore {
   store = new SettingsStore(join(app.getPath('userData'), 'settings.json'))
+  // 앱을 켠 시점의 값은 '이미 보낸 것'으로 둔다 → 아무것도 안 바꿨는데 이벤트가 나가지 않는다
+  sentFeatures = store.value.features
   return store
 }
 
@@ -23,6 +25,45 @@ export function getSettings(): SettingsStore {
 
 const BaselineSchema = SettingsSchema.shape.baseline.unwrap().omit({ savedAt: true })
 
+type Features = Settings['features']
+
+/** 이벤트로 마지막에 보낸 기능 on/off. 바뀌었을 때만 다시 보내려고 들고 있다. */
+let sentFeatures: Features | null = null
+let featureTimer: ReturnType<typeof setTimeout> | null = null
+/** 토글을 연달아 누르면 하나로 묶는다 */
+const SETTINGS_DEBOUNCE_MS = 500
+
+function sameFeatures(a: Features, b: Features): boolean {
+  return (
+    a.studyTimer === b.studyTimer &&
+    a.stretch === b.stretch &&
+    a.awayPause === b.awayPause &&
+    a.overlay === b.overlay
+  )
+}
+
+/**
+ * 기능 on/off 가 바뀌었으면 SETTINGS_CHANGED 를 한 번 쌓는다.
+ * - 보내는 값은 토글 4개뿐이다 (민감도·기준값 같은 개인 설정은 보내지 않는다)
+ * - 0.5초 모아서 한 번만 보낸다
+ */
+function scheduleFeatureEvent(features: Features): void {
+  if (featureTimer) clearTimeout(featureTimer)
+  featureTimer = setTimeout(() => {
+    featureTimer = null
+    if (sentFeatures && sameFeatures(sentFeatures, features)) return
+    sentFeatures = features
+    getQueue().enqueue(buildEvent('SETTINGS_CHANGED', features))
+  }, SETTINGS_DEBOUNCE_MS)
+}
+
+/** 설정이 바뀌면 열려 있는 모든 창에 알린다 (다른 창도 바로 따라간다). */
+function broadcast(settings: Settings): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(IPC.SETTINGS_UPDATED, settings)
+  }
+}
+
 export function registerOnboardingIpc(): void {
   ipcMain.handle(IPC.SETTINGS_GET, () => getSettings().value)
 
@@ -31,6 +72,8 @@ export function registerOnboardingIpc(): void {
     if (!parsed.success) return getSettings().value
     const settings = getSettings().update(parsed.data as Partial<Settings>)
     configurePosture() // 민감도가 바뀌면 판정 기준도 바뀐다
+    broadcast(settings)
+    scheduleFeatureEvent(settings.features)
     return settings
   })
 
@@ -44,6 +87,7 @@ export function registerOnboardingIpc(): void {
       baseline: { ...value, savedAt: toKstIso(new Date()) }
     })
     configurePosture() // 새 기준으로 판정을 다시 시작한다
+    broadcast(settings)
     // 기준값 자체는 보내지 않는다. 완료 사실만 기록한다.
     getQueue().enqueue(
       buildEvent('CALIBRATION_COMPLETED', { isRecalibration: isRecalibration === true })

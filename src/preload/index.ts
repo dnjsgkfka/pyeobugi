@@ -27,7 +27,9 @@ const api: PreloadApi = {
     get: () => ipcRenderer.invoke(IPC.SETTINGS_GET),
     update: (patch: Partial<Settings>) => ipcRenderer.invoke(IPC.SETTINGS_UPDATE, patch),
     saveCalibration: (baseline: Baseline, isRecalibration: boolean) =>
-      ipcRenderer.invoke(IPC.CALIBRATION_SAVE, baseline, isRecalibration)
+      ipcRenderer.invoke(IPC.CALIBRATION_SAVE, baseline, isRecalibration),
+    onChange: (listener: (settings: Settings) => void) =>
+      subscribe<Settings>(IPC.SETTINGS_UPDATED, listener)
   },
   report: {
     get: (date?: string): Promise<ReportView> => ipcRenderer.invoke(IPC.REPORT_GET, date),
