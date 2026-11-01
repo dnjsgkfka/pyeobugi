@@ -33,6 +33,8 @@ export const IPC = {
   POSTURE_STATE: 'posture:state',
   /** 리포트 조회 (구간 마감 → 큐 flush → GET 순서로 처리된다) */
   REPORT_GET: 'report:get',
+  /** main → 모든 창: 설정이 바뀌었다 */
+  SETTINGS_UPDATED: 'settings:updated',
   /** 기록이 있는 날짜들 (캘린더 표시용) */
   REPORT_RECORDED_DATES: 'report:recorded-dates',
   /** 개발용: mock 시나리오 바꾸기 */
@@ -58,6 +60,8 @@ export interface PreloadApi {
     update: (patch: Partial<Settings>) => Promise<Settings>
     /** 기준 자세를 저장하고 온보딩을 끝낸 것으로 표시한다 */
     saveCalibration: (baseline: Baseline, isRecalibration: boolean) => Promise<Settings>
+    /** 설정이 바뀔 때마다 호출된다 (해제 함수를 돌려준다) */
+    onChange: (listener: (settings: Settings) => void) => () => void
   }
   report: {
     /** @param date `YYYY-MM-DD` (KST). 생략하면 오늘 */

@@ -38,7 +38,8 @@ export default function Calibrate(): React.JSX.Element {
       saved.current = true
       void window.api.settings
         .saveCalibration(baseline, isRecalibration)
-        .then(() => navigate('/report', { replace: true }))
+        // 설정에서 들어왔으면 설정으로, 온보딩이었으면 리포트로
+        .then(() => navigate(isRecalibration ? '/settings' : '/report', { replace: true }))
     },
     [isRecalibration, navigate]
   )

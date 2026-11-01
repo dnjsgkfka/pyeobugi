@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
-import type { Settings as SettingsValue } from '@shared/schemas/settings'
 import AppLayout from './AppLayout'
+import { useSettings } from './useSettings'
 import DevDetector from './screens/DevDetector'
 import DevGallery from './screens/DevGallery'
 import DevMock from './screens/DevMock'
@@ -18,11 +17,7 @@ function Start({ onboarded }: { onboarded: boolean }): React.JSX.Element {
 }
 
 function App(): React.JSX.Element {
-  const [settings, setSettings] = useState<SettingsValue | null>(null)
-
-  useEffect(() => {
-    void window.api.settings.get().then(setSettings)
-  }, [])
+  const { settings } = useSettings()
 
   if (!settings) return <Loading />
 

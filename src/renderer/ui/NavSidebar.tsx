@@ -45,9 +45,9 @@ export function NavSidebar({ collapsed = false }: { collapsed?: boolean }): Reac
     >
       <div className={`flex flex-col gap-8 ${collapsed ? 'w-full items-center' : ''}`}>
         {collapsed ? (
-          <LogoSymbol className="h-[30px] w-9" />
+          <LogoSymbol className="h-[30px] w-9 shrink-0" />
         ) : (
-          <LogoFull className="h-[30px] w-auto" />
+          <LogoFull className="h-[30px] w-29 shrink-0 self-start" />
         )}
         <div className={`flex flex-col gap-2 ${collapsed ? 'items-center' : ''}`}>
           <Tab
