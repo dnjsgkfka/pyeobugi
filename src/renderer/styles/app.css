@@ -115,7 +115,9 @@ body {
 [data-drag] input,
 [data-drag] [role='button'],
 [data-drag] [role='switch'],
-[data-drag] [role='radio'] {
+[data-drag] [role='radio'],
+[data-drag] [role='slider'],
+[data-drag] [data-no-drag] {
   -webkit-app-region: no-drag;
 }
 body {
