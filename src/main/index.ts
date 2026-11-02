@@ -4,6 +4,7 @@ import { initApi } from './api'
 import { registerCameraPermissions, registerDetectorIpc } from './detector'
 import { registerIpc } from './ipc'
 import { initSettings, registerOnboardingIpc } from './onboarding'
+import { registerPomodoroIpc } from './pomodoro'
 import { configurePosture, registerPostureIpc } from './posture'
 import { initReport, registerReportIpc } from './report'
 import { initQueue } from './queue'
@@ -41,6 +42,7 @@ if (!app.requestSingleInstanceLock()) {
     registerOnboardingIpc()
     registerDetectorIpc()
     registerPostureIpc()
+    registerPomodoroIpc()
     initReport()
     registerReportIpc()
     configurePosture()

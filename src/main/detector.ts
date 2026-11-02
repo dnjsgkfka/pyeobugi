@@ -1,10 +1,44 @@
-import { ipcMain, session, shell, type IpcMainEvent } from 'electron'
+import { BrowserWindow, ipcMain, session, shell, type IpcMainEvent } from 'electron'
 import { isDetectorCommand, isDetectorStatus, type DetectorStatus } from '@shared/detector'
 import { IPC } from '@shared/ipc'
 import { flushUsage } from './posture'
+import { setTrayState } from './tray'
 import { getWindow } from './windows'
 
 let status: DetectorStatus = 'idle'
+
+/** 감지 경과 시간. 멈추면 멈춘 만큼만 쌓아 둔다 */
+let runningSince: number | null = null
+let accumulated = 0
+let ticker: ReturnType<typeof setInterval> | null = null
+
+function elapsedMs(): number {
+  return accumulated + (runningSince === null ? 0 : Date.now() - runningSince)
+}
+
+function broadcastDetection(): void {
+  const state = { running: runningSince !== null, elapsedMs: elapsedMs() }
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(IPC.DETECTION_STATE, state)
+  }
+}
+
+function beginSession(): void {
+  if (runningSince !== null) return
+  runningSince = Date.now()
+  ticker ??= setInterval(broadcastDetection, 1_000)
+  broadcastDetection()
+}
+
+/** @param reset true 면 경과 시간을 0 으로 (종료 버튼) */
+function endSession(reset: boolean): void {
+  if (runningSince !== null) accumulated += Date.now() - runningSince
+  runningSince = null
+  if (reset) accumulated = 0
+  if (ticker) clearInterval(ticker)
+  ticker = null
+  broadcastDetection()
+}
 
 function fromDetector(event: IpcMainEvent): boolean {
   return event.sender === getWindow('detector')?.webContents
@@ -14,8 +48,13 @@ function fromDetector(event: IpcMainEvent): boolean {
 export function registerDetectorIpc(): void {
   ipcMain.on(IPC.DETECTOR_COMMAND, (_event, command: unknown) => {
     if (!isDetectorCommand(command)) return
-    // 감지를 멈추면 쌓이던 구간을 마감한다 (일시정지 / 타이머 종료)
-    if (command === 'stop') flushUsage()
+    if (command === 'start') beginSession()
+    else {
+      // 감지를 멈추면 쌓이던 구간을 마감한다
+      flushUsage()
+      setTrayState('idle')
+      endSession(false)
+    }
     getWindow('detector')?.webContents.send(IPC.DETECTOR_COMMAND, command)
   })
 
@@ -26,6 +65,19 @@ export function registerDetectorIpc(): void {
   })
 
   ipcMain.handle(IPC.DETECTOR_GET_STATUS, () => status)
+
+  ipcMain.handle(IPC.DETECTION_GET, () => ({
+    running: runningSince !== null,
+    elapsedMs: elapsedMs()
+  }))
+
+  // 종료 버튼: 멈추고 경과 시간도 되돌린다
+  ipcMain.on(IPC.DETECTION_RESET, () => {
+    flushUsage()
+    setTrayState('idle')
+    endSession(true)
+    getWindow('detector')?.webContents.send(IPC.DETECTOR_COMMAND, 'stop')
+  })
 
   ipcMain.on(IPC.CAMERA_OPEN_SETTINGS, () => {
     if (process.platform === 'win32') void shell.openExternal('ms-settings:privacy-webcam')

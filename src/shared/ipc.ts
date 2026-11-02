@@ -1,6 +1,13 @@
 import type { Baseline } from './calibration'
 import type { DetectorCommand, DetectorStatus, PostureSample } from './detector'
+import type { PomodoroState } from './pomodoro'
 import type { PostureResult } from './posture-engine'
+
+/** 감지가 돌아간 시간 */
+export interface DetectionState {
+  running: boolean
+  elapsedMs: number
+}
 import type { ReportView } from './report'
 import type { Settings } from './schemas/settings'
 
@@ -31,6 +38,14 @@ export const IPC = {
   CALIBRATION_SAVE: 'calibration:save',
   /** main → app/overlay: 판정 결과 (good / slipping / bad / away) */
   POSTURE_STATE: 'posture:state',
+  /** 감지 경과 시간 */
+  DETECTION_STATE: 'detection:state',
+  DETECTION_GET: 'detection:get',
+  DETECTION_RESET: 'detection:reset',
+  /** 뽀모도로 */
+  POMODORO_STATE: 'pomodoro:state',
+  POMODORO_GET: 'pomodoro:get',
+  POMODORO_COMMAND: 'pomodoro:command',
   /** 리포트 조회 (구간 마감 → 큐 flush → GET 순서로 처리된다) */
   REPORT_GET: 'report:get',
   /** main → 모든 창: 설정이 바뀌었다 */
@@ -74,6 +89,13 @@ export interface PreloadApi {
     getScenario: () => Promise<string | null>
     setScenario: (scenario: string) => Promise<string | null>
   }
+  pomodoro: {
+    get: () => Promise<PomodoroState>
+    start: () => void
+    pause: () => void
+    stop: () => void
+    onState: (listener: (state: PomodoroState) => void) => () => void
+  }
   posture: {
     /** app → detector: 감지 시작/정지 */
     start: () => void
@@ -82,6 +104,11 @@ export interface PreloadApi {
     /** app 쪽 구독 (해제 함수를 돌려준다) */
     onSample: (listener: (sample: PostureSample) => void) => () => void
     onStatus: (listener: (status: DetectorStatus) => void) => () => void
+    /** 감지 경과 시간 */
+    getDetection: () => Promise<DetectionState>
+    onDetection: (listener: (state: DetectionState) => void) => () => void
+    /** 멈추고 경과 시간을 0 으로 */
+    reset: () => void
     /** 자세 판정 결과 구독 */
     onState: (listener: (result: PostureResult) => void) => () => void
     /** detector 쪽 */
