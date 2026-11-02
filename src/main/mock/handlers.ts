@@ -10,8 +10,13 @@ import { isKstDateString, kstDateString, toKstIso } from '@shared/time'
 import { isUuidV4 } from '../device'
 import type { Scenario } from './scenarios'
 
-/** 시나리오와 "이미 받은 eventId" 는 메모리에만 둔다. */
-const state: { scenario: Scenario; seen: Set<string> } = { scenario: 'ok', seen: new Set() }
+/** 시나리오, "이미 받은 eventId", 등록된 기기는 메모리에만 둔다. */
+const state: {
+  scenario: Scenario
+  seen: Set<string>
+  /** deviceId → deviceSecret */
+  devices: Map<string, string>
+} = { scenario: 'ok', seen: new Set(), devices: new Map() }
 
 export function setScenario(scenario: Scenario): void {
   state.scenario = scenario
@@ -20,6 +25,7 @@ export function setScenario(scenario: Scenario): void {
 export function resetMock(): void {
   state.scenario = 'ok'
   state.seen.clear()
+  state.devices.clear()
 }
 
 let traceCounter = 0
@@ -104,7 +110,37 @@ function buildSummary(date: string): ReportSummary {
   }
 }
 
+/**
+ * 기기 인증. 등록 전이면 401 `DEVICE_SECRET_INVALID`.
+ * `secret_invalid` 시나리오는 맞는 secret 도 거부한다 (재등록 흐름 확인용).
+ */
+function unauthorized(request: Request): Response | null {
+  const deviceId = request.headers.get('X-Device-Id') ?? ''
+  const secret = request.headers.get('X-Device-Secret')
+  if (state.scenario === 'secret_invalid') return error(401, 'DEVICE_SECRET_INVALID')
+  // 등록 엔드포인트가 없는 서버는 secret 을 아예 보지 않는다
+  if (state.scenario === 'register_unavailable') return null
+  if (!secret || state.devices.get(deviceId) !== secret) {
+    return error(401, 'DEVICE_SECRET_INVALID')
+  }
+  return null
+}
+
 export const handlers = [
+  http.post('*/api/devices/register', ({ request }) => {
+    const failed = failure()
+    if (failed) return failed
+    if (state.scenario === 'register_unavailable') return error(404, 'NOT_FOUND')
+
+    const deviceId = request.headers.get('X-Device-Id')
+    if (!isUuidV4(deviceId)) return error(400, 'DEVICE_ID_INVALID')
+    if (state.devices.has(deviceId)) return error(409, 'DEVICE_ALREADY_REGISTERED')
+
+    const deviceSecret = `mock-secret-${deviceId.slice(0, 8)}`
+    state.devices.set(deviceId, deviceSecret)
+    return HttpResponse.json({ deviceSecret })
+  }),
+
   http.post('*/api/events', async ({ request }) => {
     const failed = failure()
     if (failed) return failed
@@ -112,6 +148,8 @@ export const handlers = [
 
     const deviceId = request.headers.get('X-Device-Id')
     if (!isUuidV4(deviceId)) return error(400, 'DEVICE_ID_INVALID')
+    const denied = unauthorized(request)
+    if (denied) return denied
 
     const text = await request.text()
     if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
@@ -156,6 +194,8 @@ export const handlers = [
     if (failed) return failed
 
     if (!isUuidV4(request.headers.get('X-Device-Id'))) return error(400, 'DEVICE_ID_INVALID')
+    const denied = unauthorized(request)
+    if (denied) return denied
     const date = new URL(request.url).searchParams.get('date') ?? kstDateString(new Date())
     if (!isKstDateString(date)) return error(400, 'INVALID_REQUEST')
     return HttpResponse.json(buildSummary(date), { headers: { 'Cache-Control': 'no-store' } })

@@ -8,15 +8,33 @@ import { server } from '../mock/server'
 const DEVICE_ID = '3f2b8c1e-6a4d-4e0b-9b7a-0c1d2e3f4a5b'
 const BASE = 'https://mock.turtle.local/api'
 
+/** 받아 둔 기기 secret. 실제 앱처럼 client 들이 같은 값을 공유한다 */
+const secrets = new Map<string, string>()
+
 function client(deviceId = DEVICE_ID): ApiClient {
-  return createApiClient({ baseUrl: BASE, deviceId, onError: () => {} })
+  const api: ApiClient = createApiClient({
+    baseUrl: BASE,
+    deviceId,
+    deviceSecret: () => secrets.get(deviceId) ?? null,
+    onUnauthorized: async () => {
+      const result = await api.registerDevice()
+      if (result.kind !== 'ok') return false
+      secrets.set(deviceId, result.deviceSecret)
+      return true
+    },
+    onError: () => {}
+  })
+  return api
 }
 function use(scenario: Scenario): void {
   setScenario(scenario)
 }
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
-afterEach(() => resetMock())
+afterEach(() => {
+  resetMock()
+  secrets.clear()
+})
 afterAll(() => server.close())
 
 describe('이벤트 전송', () => {
@@ -179,5 +197,46 @@ describe('리포트 조회', () => {
   ] as const)('%s 시나리오 → error(%s)', async (scenario, reason) => {
     use(scenario)
     expect(await client().getReportSummary()).toMatchObject({ kind: 'error', reason })
+  })
+})
+
+describe('기기 인증', () => {
+  it('등록하면 secret 을 받고, 같은 ID 로 또 등록하면 409', async () => {
+    const api = client()
+    const first = await api.registerDevice()
+    if (first.kind !== 'ok') throw new Error('ok 가 아님')
+    expect(first.deviceSecret).toMatch(/^mock-secret-/)
+    expect(await api.registerDevice()).toEqual({ kind: 'already' })
+  })
+
+  it('등록 전 요청은 401 을 받고, 자동으로 등록한 뒤 다시 보내 성공한다', async () => {
+    const api = client()
+    expect(secrets.has(DEVICE_ID)).toBe(false)
+    const result = await api.postEvents([makeEvent('SESSION_START')])
+    expect(result).toMatchObject({ kind: 'done', accepted: 1 })
+    expect(secrets.get(DEVICE_ID)).toMatch(/^mock-secret-/)
+  })
+
+  it('secret 을 계속 거부하면 이벤트는 큐에 남긴다 (폐기하지 않음)', async () => {
+    use('secret_invalid')
+    expect(await client().postEvents([makeEvent('SESSION_START')])).toEqual({
+      kind: 'retry',
+      reason: 'device_secret_invalid'
+    })
+  })
+
+  it('secret 을 계속 거부하면 리포트는 device_secret_invalid', async () => {
+    use('secret_invalid')
+    expect(await client().getReportSummary()).toMatchObject({
+      kind: 'error',
+      reason: 'device_secret_invalid'
+    })
+  })
+
+  it('등록 엔드포인트가 없는 서버(BE 머지 전)에서는 secret 없이 그대로 동작한다', async () => {
+    use('register_unavailable')
+    expect(await client().registerDevice()).toEqual({ kind: 'unavailable' })
+    expect(await client().postEvents([makeEvent('SESSION_START')])).toMatchObject({ kind: 'done' })
+    expect(await client().getReportSummary()).toMatchObject({ kind: 'ok' })
   })
 })
