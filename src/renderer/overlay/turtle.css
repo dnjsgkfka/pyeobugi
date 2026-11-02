@@ -1,0 +1,253 @@
+.turtle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--size);
+  height: var(--size);
+  will-change: transform;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.hop,
+.bob,
+.face {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 80%;
+}
+.view {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: none;
+}
+.view.on {
+  display: block;
+}
+.face.flip {
+  transform: scaleX(-1);
+}
+/* 세 그림의 발끝 높이를 같은 선(y≈400)에 맞춤 */
+.v-front g.root,
+.v-back g.root,
+.v-bl g.root {
+  transform-box: view-box;
+  transform-origin: 250px 382px;
+  transform: translateY(18px) scale(1.05);
+}
+/* 정면·뒷모습은 원본이 약 5% 작게 그려져 있어 맞춤 */
+
+.p {
+  transform-box: fill-box;
+}
+.o-l {
+  transform-origin: 25% 12%;
+}
+.o-r {
+  transform-origin: 75% 12%;
+}
+.o-side {
+  transform-origin: 8% 45%;
+}
+.tail {
+  transform-origin: 10% 90%;
+}
+.tail-b {
+  transform-origin: 45% 95%;
+}
+.head-s {
+  transform-origin: 85% 85%;
+}
+.head-f,
+.head-b {
+  transform-origin: 50% 90%;
+}
+.eyes {
+  transform-origin: 50% 50%;
+  animation: blink 5.3s infinite;
+}
+@keyframes blink {
+  0%,
+  46%,
+  49%,
+  100% {
+    transform: scaleY(1);
+  }
+  47.5% {
+    transform: scaleY(0.08);
+  }
+}
+/* 대기: 숨쉬기 */
+.turtle.idle .bob {
+  animation: breathe 3.2s ease-in-out infinite;
+}
+.turtle.longmode .bob {
+  animation: none;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.012, 1.03);
+  }
+}
+.turtle.idle .tail,
+.turtle.idle .tail-b {
+  animation: wag 3.2s ease-in-out infinite;
+}
+/* 걷기: 한 걸음 0.45s, 좌우로 뒤뚱 */
+.turtle.walk .bob {
+  animation: waddle 0.9s linear infinite;
+}
+@keyframes waddle {
+  0% {
+    transform: translateY(0) rotate(-2deg);
+    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+  }
+  25% {
+    transform: translateY(-6px) rotate(0);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.7, 1);
+  }
+  50% {
+    transform: translateY(0) rotate(2deg);
+    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+  }
+  75% {
+    transform: translateY(-6px) rotate(0);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.7, 1);
+  }
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+}
+.turtle.walk .legA,
+.turtle.walk .legA2 {
+  animation: step 0.9s ease-in-out infinite;
+}
+.turtle.walk .legB,
+.turtle.walk .legB2 {
+  animation: step 0.9s ease-in-out -0.45s infinite;
+}
+@keyframes step {
+  0%,
+  100% {
+    transform: rotate(-11deg) translateY(0);
+  }
+  25% {
+    transform: rotate(0) translateY(-7px);
+  }
+  50% {
+    transform: rotate(11deg) translateY(0);
+  }
+  75% {
+    transform: rotate(0) translateY(0);
+  }
+}
+.turtle.walk .tail,
+.turtle.walk .tail-b {
+  animation: wag 0.45s ease-in-out infinite alternate;
+}
+@keyframes wag {
+  from {
+    transform: rotate(-8deg);
+  }
+  to {
+    transform: rotate(8deg);
+  }
+}
+.turtle.walk .head-s,
+.turtle.walk .head-f,
+.turtle.walk .head-b {
+  animation: nod 0.45s ease-in-out infinite alternate;
+}
+@keyframes nod {
+  from {
+    transform: rotate(-1.5deg) translateY(0);
+  }
+  to {
+    transform: rotate(1.5deg) translateY(-3px);
+  }
+}
+/* 머리 털기: 눈을 감고 좌우로 빠르게 털다가 잦아듦 */
+.eyes {
+  transition: transform 0.09s ease-in-out;
+}
+.turtle.blinknow .eyes {
+  animation: none;
+  transform: scaleY(0.1);
+}
+.closed-eyes {
+  display: none;
+}
+.turtle.eyesclosing .v-front .eyes {
+  animation: none;
+  transform: scaleY(0.1);
+}
+/* 감기 직전 눈꺼풀 내려오듯 */
+.turtle.eyesclosed .v-front .eyes {
+  display: none;
+}
+.turtle.eyesclosed .v-front .closed-eyes {
+  display: inline;
+}
+/* 직접 그린 감은 눈 */
+.turtle.shake .head-f {
+  animation: shake 0.95s cubic-bezier(0.3, 0.6, 0.4, 1);
+}
+@keyframes shake {
+  0% {
+    transform: rotate(0) translateX(0);
+  }
+  10% {
+    transform: rotate(-10deg) translateX(-7px);
+  }
+  24% {
+    transform: rotate(10deg) translateX(7px);
+  }
+  38% {
+    transform: rotate(-8deg) translateX(-5px);
+  }
+  52% {
+    transform: rotate(6deg) translateX(4px);
+  }
+  66% {
+    transform: rotate(-3.5deg) translateX(-2px);
+  }
+  80% {
+    transform: rotate(1.5deg) translateX(1px);
+  }
+  100% {
+    transform: rotate(0) translateX(0);
+  }
+}
+.turtle.shake .bob {
+  animation: jiggle 0.95s ease-out;
+}
+@keyframes jiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  12% {
+    transform: rotate(1.6deg);
+  }
+  26% {
+    transform: rotate(-1.6deg);
+  }
+  40% {
+    transform: rotate(1.1deg);
+  }
+  54% {
+    transform: rotate(-0.8deg);
+  }
+  70% {
+    transform: rotate(0.3deg);
+  }
+}
+.turtle * {
+  animation: none !important;
+}
