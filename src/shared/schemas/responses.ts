@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { kstIso } from './events'
 
 export const ErrorResponseSchema = z.object({
   code: z.string(),
@@ -25,28 +24,59 @@ export const EventsResponseSchema = z.object({
 export type EventsResponse = z.infer<typeof EventsResponseSchema>
 
 const rate = z.number().int().min(0).max(100).nullable()
+const seconds = z.number().int().min(0)
 
-const StatsSchema = z.object({
+/** Swagger PeriodSummary. day / yesterday / week / lastWeek 가 모두 같은 모양이다 */
+const PeriodSummarySchema = z.object({
   postureKeepRate: rate,
-  turtleNeckCount: z.number().int().min(0),
-  pomodoroCount: z.number().int().min(0),
-  usageSeconds: z.number().int().min(0)
+  turtleNeckCount: seconds,
+  pomodoroCount: seconds,
+  usageSeconds: seconds
 })
+export type PeriodSummary = z.infer<typeof PeriodSummarySchema>
+
+/** Swagger Distribution. 상태별 시간과 비율 */
+const DistributionSchema = z.object({
+  goodSeconds: seconds,
+  mildSeconds: seconds,
+  turtleSeconds: seconds,
+  goodRate: rate,
+  mildRate: rate,
+  turtleRate: rate
+})
+export type Distribution = z.infer<typeof DistributionSchema>
+
+/** Swagger TurtleNeckTimeline. occurredAt 은 감지 시각, peakHours 는 몰린 시간대 */
+const TurtleNeckTimelineSchema = z.object({
+  occurredAt: z.array(z.string()),
+  peakHours: z.array(z.number().int().min(0).max(23))
+})
+export type TurtleNeckTimeline = z.infer<typeof TurtleNeckTimelineSchema>
 
 /**
  * GET /api/reports/summary?date=YYYY-MM-DD  (date 생략 시 오늘, KST)
- * - day: 해당 날짜 / week: 해당 날짜가 속한 주(월요일 00:00 ~ 해당 날짜)
- * - hourly: 해당 날짜의 시간대별 정자세 비율 24칸 (사용 기록 없는 시간은 null)
+ *
+ * 운영 Swagger(ReportSummaryResponse) 기준이다.
+ * Swagger 에 required 표기가 없어서 모든 필드를 optional 로 받는다
+ * — 빠져 있어도 화면이 죽지 않게 하고, 쓰는 쪽에서 없을 때를 처리한다.
  */
 export const ReportSummarySchema = z.object({
   hasData: z.boolean(),
-  generatedAt: kstIso,
+  generatedAt: z.string(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  day: StatsSchema,
-  week: StatsSchema,
-  hourly: z
-    .array(z.object({ hour: z.number().int().min(0).max(23), postureKeepRate: rate }))
-    .length(24),
-  comment: z.object({ message: z.string(), mood: z.enum(['GOOD', 'NORMAL', 'BAD']) }).nullable()
+  day: PeriodSummarySchema,
+  /** 어제 (어제보다 … 문구) */
+  yesterday: PeriodSummarySchema.nullish(),
+  /** 해당 날짜가 속한 주의 월요일 00:00 ~ 해당 날짜 */
+  week: PeriodSummarySchema,
+  lastWeek: PeriodSummarySchema.nullish(),
+  /** 시간대별 정자세 비율. 기록 없는 시간은 빠지거나 null 로 온다 */
+  hourly: z.array(z.object({ hour: z.number().int().min(0).max(23), postureKeepRate: rate })),
+  turtleNeckTimeline: TurtleNeckTimelineSchema.nullish(),
+  distribution: DistributionSchema.nullish(),
+  comment: z.object({ message: z.string(), mood: z.enum(['GOOD', 'NORMAL', 'BAD']) }).nullish()
 })
 export type ReportSummary = z.infer<typeof ReportSummarySchema>
+
+export const DeviceRegisterSchema = z.object({ deviceSecret: z.string().min(1) })
+export type DeviceRegister = z.infer<typeof DeviceRegisterSchema>

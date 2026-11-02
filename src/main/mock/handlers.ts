@@ -57,8 +57,19 @@ function buildSummary(date: string): ReportSummary {
       generatedAt: toKstIso(new Date()),
       date,
       day: none,
+      yesterday: none,
       week: none,
+      lastWeek: none,
       hourly: hourly.map((h) => ({ ...h, postureKeepRate: null })),
+      turtleNeckTimeline: { occurredAt: [], peakHours: [] },
+      distribution: {
+        goodSeconds: 0,
+        mildSeconds: 0,
+        turtleSeconds: 0,
+        goodRate: null,
+        mildRate: null,
+        turtleRate: null
+      },
       comment: null
     }
   }
@@ -67,8 +78,28 @@ function buildSummary(date: string): ReportSummary {
     generatedAt: toKstIso(new Date()),
     date,
     day: { postureKeepRate: 82, turtleNeckCount: 5, pomodoroCount: 6, usageSeconds: 12600 },
+    yesterday: { postureKeepRate: 76, turtleNeckCount: 8, pomodoroCount: 4, usageSeconds: 10800 },
     week: { postureKeepRate: 78, turtleNeckCount: 31, pomodoroCount: 22, usageSeconds: 71400 },
+    lastWeek: { postureKeepRate: 74, turtleNeckCount: 40, pomodoroCount: 18, usageSeconds: 68400 },
     hourly,
+    turtleNeckTimeline: {
+      occurredAt: [
+        `${date}T10:20:00+09:00`,
+        `${date}T11:05:00+09:00`,
+        `${date}T14:40:00+09:00`,
+        `${date}T14:55:00+09:00`,
+        `${date}T18:10:00+09:00`
+      ],
+      peakHours: [14, 18]
+    },
+    distribution: {
+      goodSeconds: 10332,
+      mildSeconds: 1512,
+      turtleSeconds: 756,
+      goodRate: 82,
+      mildRate: 12,
+      turtleRate: 6
+    },
     comment: { message: '오늘 잘했어요', mood: 'GOOD' }
   }
 }

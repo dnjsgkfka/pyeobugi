@@ -141,6 +141,16 @@ describe('리포트 조회', () => {
     expect(r.data.day.postureKeepRate).toBe(82)
   })
 
+  it('Swagger 의 yesterday / distribution / turtleNeckTimeline 을 받는다', async () => {
+    const r = await client().getReportSummary('2026-10-04')
+    if (r.kind !== 'ok') throw new Error('ok 가 아님')
+    expect(r.data.yesterday?.postureKeepRate).toBe(76)
+    expect(r.data.lastWeek?.postureKeepRate).toBe(74)
+    expect(r.data.distribution).toMatchObject({ goodSeconds: 10332, turtleSeconds: 756 })
+    expect(r.data.turtleNeckTimeline?.peakHours).toEqual([14, 18])
+    expect(r.data.turtleNeckTimeline?.occurredAt).toHaveLength(5)
+  })
+
   it('date 를 생략하면 오늘 날짜로 내려온다', async () => {
     const r = await client().getReportSummary()
     expect(r.kind).toBe('ok')
