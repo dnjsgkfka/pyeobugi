@@ -6,13 +6,31 @@ import { PRESETS } from '@shared/posture'
 import { UsageTracker } from '@shared/usage'
 import { buildEvent } from './events'
 import { getSettings } from './onboarding'
+import { setTrayState } from './tray'
 import { getQueue } from './queue'
 import { getWindow } from './windows'
 
 let engine: PostureEngine | null = null
 const usage = new UsageTracker()
 
-/** 설정(기준 자세, 민감도)을 읽어 엔진을 만든다. 기준이 없으면 판정하지 않는다. */
+/** 얼굴이 안 보이기 시작한 시각. 자리비움 판단에 쓴다 */
+let lostSince: number | null = null
+/** 자리를 비운 것으로 보는 시간. UsageTracker 의 기본값과 맞춘다 */
+const AWAY_MS = 30_000
+
+/**
+ * 자리를 오래 비웠는가.
+ * 카메라는 끄지 않는다. 판정과 사용 시간만 쉬고, 돌아오면 그대로 이어진다.
+ */
+function isAway(now: number, face: boolean): boolean {
+  if (face) {
+    lostSince = null
+    return false
+  }
+  if (lostSince === null) lostSince = now
+  return now - lostSince >= AWAY_MS
+}
+
 export function configurePosture(): void {
   const { baseline, sensitivity } = getSettings().value
   if (!baseline) {
@@ -59,7 +77,10 @@ export function registerPostureIpc(): void {
     if (!engine) configurePosture()
     if (!engine) return
 
+    const away = isAway(Date.now(), parsed.data.face)
+
     const result = engine.push(parsed.data)
+    setTrayState(away ? 'away' : result.state === 'bad' ? 'bad' : 'good')
     const queue = getQueue()
     if (result.enteredBad) {
       queue.enqueue(buildEvent('POSTURE_BAD', { severity: result.enteredBad }))

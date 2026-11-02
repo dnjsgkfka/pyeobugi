@@ -5,7 +5,13 @@ import { join, sep } from 'node:path'
 
 const ROOT = 'src/renderer'
 // 예외: 토큰 파일과, 디자이너가 준 그림을 그대로 담은 파일
-const ALLOW = ['tokens.css', 'onboarding/intro-stage.ts', 'onboarding/intro.css']
+const ALLOW = [
+  'tokens.css',
+  'onboarding/intro-stage.ts',
+  'onboarding/intro.css',
+  'overlay/turtle-art.ts',
+  'overlay/turtle-animation.ts'
+]
 const RE = /(?<![\w&])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b|\b(?:rgba?|hsla?)\(/
 
 function* walk(dir) {

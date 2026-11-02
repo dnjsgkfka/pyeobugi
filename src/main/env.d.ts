@@ -6,4 +6,6 @@ interface ImportMetaEnv {
   readonly MAIN_VITE_API_BASE_URL?: string
   /** ok | empty | rate_limited | server_error | offline | payload_too_large */
   readonly MAIN_VITE_MOCK_SCENARIO?: string
+  /** `true` 면 뽀모도로를 10초/5초로 줄인다 (전환 확인용) */
+  readonly MAIN_VITE_POMODORO_FAST?: string
 }

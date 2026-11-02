@@ -119,6 +119,9 @@ function createOverlay(): BrowserWindow {
     alwaysOnTop: true,
     webPreferences: webPreferences()
   })
+  win.webContents.on('console-message', (event) => {
+    console.log(`[overlay] ${event.message}`)
+  })
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setIgnoreMouseEvents(true, { forward: true })
   win.on('ready-to-show', () => win.showInactive())

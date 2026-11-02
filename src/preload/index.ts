@@ -1,10 +1,11 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { Baseline } from '@shared/calibration'
 import type { DetectorCommand, DetectorStatus, PostureSample } from '@shared/detector'
+import type { PomodoroState } from '@shared/pomodoro'
 import type { PostureResult } from '@shared/posture-engine'
 import type { ReportView } from '@shared/report'
 import type { Settings } from '@shared/schemas/settings'
-import { IPC, type PreloadApi, type WindowName } from '@shared/ipc'
+import { IPC, type DetectionState, type PreloadApi, type WindowName } from '@shared/ipc'
 
 function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
   const handler = (_event: IpcRendererEvent, value: T): void => listener(value)
@@ -39,6 +40,14 @@ const api: PreloadApi = {
     getScenario: () => ipcRenderer.invoke(IPC.MOCK_GET_SCENARIO),
     setScenario: (scenario: string) => ipcRenderer.invoke(IPC.MOCK_SET_SCENARIO, scenario)
   },
+  pomodoro: {
+    get: () => ipcRenderer.invoke(IPC.POMODORO_GET),
+    start: () => ipcRenderer.send(IPC.POMODORO_COMMAND, 'start'),
+    pause: () => ipcRenderer.send(IPC.POMODORO_COMMAND, 'pause'),
+    stop: () => ipcRenderer.send(IPC.POMODORO_COMMAND, 'stop'),
+    onState: (listener: (state: PomodoroState) => void) =>
+      subscribe<PomodoroState>(IPC.POMODORO_STATE, listener)
+  },
   posture: {
     start: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'start'),
     stop: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'stop'),
@@ -47,6 +56,10 @@ const api: PreloadApi = {
       subscribe<PostureSample>(IPC.POSTURE_SAMPLE, listener),
     onStatus: (listener: (status: DetectorStatus) => void) =>
       subscribe<DetectorStatus>(IPC.DETECTOR_STATUS, listener),
+    getDetection: (): Promise<DetectionState> => ipcRenderer.invoke(IPC.DETECTION_GET),
+    onDetection: (listener: (state: DetectionState) => void) =>
+      subscribe<DetectionState>(IPC.DETECTION_STATE, listener),
+    reset: () => ipcRenderer.send(IPC.DETECTION_RESET),
     onState: (listener: (result: PostureResult) => void) =>
       subscribe<PostureResult>(IPC.POSTURE_STATE, listener),
     onCommand: (listener: (command: DetectorCommand) => void) =>
