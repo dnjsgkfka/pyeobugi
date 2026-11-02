@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppEvent } from '@shared/schemas/events'
 import { makeEvent } from '@shared/testing'
-import { createApiClient, type PostEventsResult } from '../api/client'
+import { createApiClient, type ApiClient, type PostEventsResult } from '../api/client'
 import { resetMock, setScenario } from '../mock/handlers'
 import { server } from '../mock/server'
 import { EventQueue } from './event-queue'
@@ -322,13 +322,26 @@ describe('상한', () => {
 })
 
 describe('실제 클라이언트 + mock 서버', () => {
-  const client = createApiClient({
+  const DEVICE_ID = '3f2b8c1e-6a4d-4e0b-9b7a-0c1d2e3f4a5b'
+  // 실제 앱처럼 기기 secret 을 들고 다닌다 (401 이면 등록하고 한 번 더 보낸다)
+  let secret: string | null = null
+  const client: ApiClient = createApiClient({
     baseUrl: 'https://mock.turtle.local/api',
-    deviceId: '3f2b8c1e-6a4d-4e0b-9b7a-0c1d2e3f4a5b',
+    deviceId: DEVICE_ID,
+    deviceSecret: () => secret,
+    onUnauthorized: async () => {
+      const result = await client.registerDevice()
+      if (result.kind !== 'ok') return false
+      secret = result.deviceSecret
+      return true
+    },
     onError: () => {}
   })
   beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
-  afterEach(() => resetMock())
+  afterEach(() => {
+    resetMock()
+    secret = null
+  })
   afterAll(() => server.close())
 
   it.each(['offline', 'server_error', 'rate_limited'] as const)(
