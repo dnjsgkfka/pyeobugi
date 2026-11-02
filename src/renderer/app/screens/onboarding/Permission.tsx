@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { DetectorStatus } from '@shared/detector'
 import { Button } from '@renderer/ui/Button'
+import { Spinner } from '@renderer/ui/Spinner'
 import { OnboardingHeader } from './OnboardingHeader'
 
 interface Copy {
@@ -16,10 +17,9 @@ function copyFor(status: DetectorStatus): Copy {
   switch (status) {
     case 'denied':
       return {
-        title: '카메라를 쓸 수 없어요',
-        body: '카메라 권한이 거부되어 있어요.\n설정에서 허용한 뒤 다시 시도해 주세요.',
-        confirm: '카메라 설정 열기',
-        cancel: '다시 시도'
+        title: '카메라 권한 없음',
+        body: '카메라가 없으면 자세를 감지할 수 없어요.\n시스템 설정에서 펴부기의 카메라 접근을 켜주세요.',
+        confirm: '설정 열기'
       }
     case 'no-camera':
       return {
@@ -33,8 +33,6 @@ function copyFor(status: DetectorStatus): Copy {
         body: '다른 앱이 카메라를 쓰고 있을 수 있어요.\n그 앱을 끄고 다시 시도해 주세요.',
         confirm: '다시 시도'
       }
-    case 'starting':
-      return { title: '카메라를 여는 중이에요', body: '잠시만 기다려 주세요.', confirm: '연결 중…' }
     default:
       return {
         title: '카메라 권한을 허용하시겠습니까?',
@@ -75,24 +73,35 @@ export default function Permission(): React.JSX.Element {
   return (
     <div className="relative h-full w-full bg-main1">
       <OnboardingHeader current={1} />
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col gap-9 rounded-lg bg-white p-6 shadow-card">
-          <div className="flex w-102 flex-col gap-4">
-            <h2 className="text-heading text-grey-900">{title}</h2>
-            <p className="text-body whitespace-pre-line text-grey-700">{body}</p>
-          </div>
-          <div className="flex w-102 gap-2">
-            {cancel && (
-              <Button variant="secondary" className="flex-1" onClick={onCancel}>
-                {cancel}
-              </Button>
-            )}
-            <Button className="flex-1" disabled={status === 'starting'} onClick={onConfirm}>
-              {confirm}
-            </Button>
+
+      {/* 카메라 켜는 중: 카드 없이 화면 가운데 스피너 + 문구 (Figma 14:4339) */}
+      {status === 'starting' ? (
+        <div className="flex h-full items-center justify-center">
+          <div className="flex w-[151px] flex-col items-center gap-4">
+            <Spinner />
+            <h2 className="text-heading text-center text-white">카메라 켜는 중...</h2>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <div className="flex flex-col gap-9 rounded-lg bg-white p-6 shadow-card">
+            <div className="flex w-102 flex-col gap-4">
+              <h2 className="text-heading text-grey-900">{title}</h2>
+              <p className="text-body whitespace-pre-line text-grey-700">{body}</p>
+            </div>
+            <div className="flex w-102 gap-2">
+              {cancel && (
+                <Button variant="secondary" className="flex-1" onClick={onCancel}>
+                  {cancel}
+                </Button>
+              )}
+              <Button className="flex-1" body={!cancel} onClick={onConfirm}>
+                {confirm}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -15,6 +15,21 @@ export function IconRefresh(p: P): React.JSX.Element {
   )
 }
 
+/** 온보딩 단계 완료 체크 (Figma 6.68×4.5, 선 1px) */
+export function IconCheck(p: P): React.JSX.Element {
+  return (
+    <svg width={7} height={5} viewBox="0 0 7 5" fill="none" aria-hidden {...p}>
+      <path
+        d="M0.5 2.2L2.4 4.1L6.2 0.5"
+        stroke="currentColor"
+        strokeWidth={1}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function IconChevron(p: P): React.JSX.Element {
   return (
     <svg width={20} height={20} viewBox="0 0 20 20" fill="none" aria-hidden {...p}>
