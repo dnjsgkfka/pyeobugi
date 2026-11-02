@@ -1,19 +1,11 @@
 import { app, Menu, nativeImage, Tray } from 'electron'
-import idleIcon from '../../resources/tray-idle.png?asset'
-import goodIcon from '../../resources/tray-good.png?asset'
-import badIcon from '../../resources/tray-bad.png?asset'
-import awayIcon from '../../resources/tray-away.png?asset'
+import icon from '../../resources/icon.png?asset'
 import { showWindow } from './windows'
 
 /** 트레이 아이콘이 보여 주는 상태 */
 export type TrayState = 'idle' | 'good' | 'bad' | 'away'
 
-const ICONS: Record<TrayState, string> = {
-  idle: idleIcon,
-  good: goodIcon,
-  bad: badIcon,
-  away: awayIcon
-}
+// TODO(design): 상태별 아이콘 4종을 받으면 상태마다 다른 그림으로 바꾼다. 지금은 툴팁만 바뀐다.
 
 const TOOLTIP: Record<TrayState, string> = {
   idle: '펴부기 — 감지 꺼짐',
@@ -25,12 +17,8 @@ const TOOLTIP: Record<TrayState, string> = {
 let tray: Tray | null = null
 let state: TrayState = 'idle'
 
-function imageFor(next: TrayState): Electron.NativeImage {
-  return nativeImage.createFromPath(ICONS[next]).resize({ width: 16, height: 16 })
-}
-
 export function createTray(): void {
-  tray = new Tray(imageFor('idle'))
+  tray = new Tray(nativeImage.createFromPath(icon).resize({ width: 16, height: 16 }))
   tray.setToolTip(TOOLTIP.idle)
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -46,6 +34,5 @@ export function createTray(): void {
 export function setTrayState(next: TrayState): void {
   if (!tray || next === state) return
   state = next
-  tray.setImage(imageFor(next))
   tray.setToolTip(TOOLTIP[next])
 }
