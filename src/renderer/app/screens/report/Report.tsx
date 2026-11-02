@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { compareText, durationParts, formatAge, formatRate, peakText } from '@shared/format'
-import type { PreviousDay } from '@shared/report'
-import type { ReportSummary } from '@shared/schemas/responses'
+import type { PeriodSummary, ReportSummary } from '@shared/schemas/responses'
 import { StatCard } from '@renderer/ui/StatCard'
 import { Toast } from '@renderer/ui/Toast'
 import { useToast } from '@renderer/ui/useToast'
@@ -13,39 +12,41 @@ import { ReportEmpty, ReportError, ReportLoading } from './ReportStates'
 import { useReport } from './useReport'
 import { kstDateString } from '@shared/time'
 
-/**
- * 자세 분포.
- * TODO(BE): 상태별 시간이 응답에 없어서 유지율로 바른 자세/나쁜 자세만 나눈다.
- * 세 구간(바른 자세 / 주의 / 거북목)으로 보여주려면 필드가 필요하다.
- */
-function donutSlices(day: ReportSummary['day']): DonutSlice[] {
-  const rate = day.postureKeepRate ?? 0
-  const good = Math.round((day.usageSeconds * rate) / 100)
+/** 자세 분포. Swagger 의 distribution(상태별 초) 을 그대로 쓴다 */
+function donutSlices(distribution: NonNullable<ReportSummary['distribution']>): DonutSlice[] {
   return [
-    { label: '바른 자세', seconds: good, tone: 'bg-main4', stroke: '--c-main4' },
-    { label: '거북목', seconds: day.usageSeconds - good, tone: 'bg-main2', stroke: '--c-main2' }
+    {
+      label: '바른 자세',
+      seconds: distribution.goodSeconds,
+      tone: 'bg-main4',
+      stroke: '--c-main4'
+    },
+    { label: '주의', seconds: distribution.mildSeconds, tone: 'bg-main3', stroke: '--c-main3' },
+    { label: '거북목', seconds: distribution.turtleSeconds, tone: 'bg-main2', stroke: '--c-main2' }
   ]
 }
 
-/**
- * 거북목이 감지된 시각.
- * TODO(BE): 감지 시각 목록이 응답에 없다. 지금은 정자세 비율이 낮았던 시간으로 대신한다.
- */
-function badHours(hourly: ReportSummary['hourly']): number[] {
-  return hourly
-    .filter((entry) => entry.postureKeepRate !== null && entry.postureKeepRate < 70)
-    .map((entry) => entry.hour)
+/** 거북목이 감지된 시각(시 + 분/60). KST ISO 문자열을 그대로 읽는다 */
+function badHours(timeline: ReportSummary['turtleNeckTimeline']): number[] {
+  if (!timeline) return []
+  return timeline.occurredAt
+    .map((iso) => {
+      const matched = /T(\d{2}):(\d{2})/.exec(iso)
+      return matched ? Number(matched[1]) + Number(matched[2]) / 60 : null
+    })
+    .filter((hour): hour is number => hour !== null)
+}
+
+/** 도넛 전체 합. 비율이 아니라 초로 그리므로 세 조각을 더한다 */
+function distributionSeconds(distribution: ReportSummary['distribution']): number {
+  if (!distribution) return 0
+  return distribution.goodSeconds + distribution.mildSeconds + distribution.turtleSeconds
 }
 
 /** 지표 카드 4개. 순서와 문구는 Figma 그대로. */
-function Stats({
-  data,
-  previous
-}: {
-  data: ReportSummary
-  previous: PreviousDay
-}): React.JSX.Element {
+function Stats({ data }: { data: ReportSummary }): React.JSX.Element {
   const { day, week } = data
+  const previous: PeriodSummary | null = data.yesterday ?? null
   const minutes = Math.round(day.usageSeconds / 60)
   const previousMinutes = previous ? Math.round(previous.usageSeconds / 60) : null
 
@@ -114,7 +115,6 @@ export default function Report(): React.JSX.Element {
   }, [state])
 
   const data = view && view.kind !== 'error' ? view.data : null
-  const previous = view && view.kind !== 'error' ? view.previous : null
 
   return (
     <>
@@ -138,12 +138,18 @@ export default function Report(): React.JSX.Element {
 
       {data?.hasData && (
         <div className="flex h-[699px] flex-col gap-3">
-          <Stats data={data} previous={previous} />
+          <Stats data={data} />
           <div className="flex flex-1 items-stretch gap-3">
             <HourlyChart hourly={data.hourly} />
-            <PostureDonut slices={donutSlices(data.day)} totalSeconds={data.day.usageSeconds} />
+            <PostureDonut
+              slices={data.distribution ? donutSlices(data.distribution) : []}
+              totalSeconds={distributionSeconds(data.distribution)}
+            />
           </div>
-          <BadTimeline hours={badHours(data.hourly)} summary={peakText(badHours(data.hourly))} />
+          <BadTimeline
+            hours={badHours(data.turtleNeckTimeline)}
+            summary={peakText(data.turtleNeckTimeline?.peakHours ?? [])}
+          />
         </div>
       )}
 

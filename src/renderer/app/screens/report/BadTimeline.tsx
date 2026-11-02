@@ -4,7 +4,6 @@ const END_HOUR = 20
 /**
  * 거북목 감지 시점. 가로 막대 위에 점으로 찍는다.
  * Figma: 카드 높이 113 (padding 16, 내용 gap 24 / 막대 4 / 라벨 사이 16)
- * TODO(BE): 감지 시각 목록이 리포트 응답에 없다. 필드가 생기면 hours 를 그대로 받는다.
  */
 export function BadTimeline({
   hours,

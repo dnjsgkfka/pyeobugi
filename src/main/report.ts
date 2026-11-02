@@ -2,7 +2,7 @@ import { app, ipcMain } from 'electron'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { IPC } from '@shared/ipc'
-import type { PreviousDay, ReportView } from '@shared/report'
+import type { ReportView } from '@shared/report'
 import { ReportSummarySchema, type ReportSummary } from '@shared/schemas/responses'
 import { isKstDateString, kstDateString, toKstIso } from '@shared/time'
 import { getApi } from './api'
@@ -80,7 +80,7 @@ export async function fetchReport(date?: string): Promise<ReportView> {
   if (result.kind === 'ok') {
     cache[key] = { data: result.data, cachedAt: toKstIso(new Date()) }
     saveCache()
-    return { kind: 'ok', data: result.data, previous: await fetchPrevious(key) }
+    return { kind: 'ok', data: result.data }
   }
 
   const cached = cache[key]
@@ -88,31 +88,11 @@ export async function fetchReport(date?: string): Promise<ReportView> {
     return {
       kind: 'stale',
       data: cached.data,
-      previous: cache[previousKey(key)]?.data.day ?? null,
       cachedAt: cached.cachedAt,
       reason: result.reason
     }
   }
   return { kind: 'error', reason: result.reason }
-}
-
-/** 하루 전 KST 날짜 */
-function previousKey(date: string): string {
-  return kstDateString(new Date(Date.parse(`${date}T00:00:00+09:00`) - 24 * 60 * 60 * 1000))
-}
-
-/**
- * '어제보다 …' 문구에 쓸 하루 전 지표.
- * 곁들이는 정보라 실패해도 조용히 넘어간다 (큐 flush 도 하지 않는다).
- */
-async function fetchPrevious(date: string): Promise<PreviousDay> {
-  const key = previousKey(date)
-  const cached = cache[key]
-  const result = await getApi().getReportSummary(key)
-  if (result.kind !== 'ok') return cached?.data.day ?? null
-  cache[key] = { data: result.data, cachedAt: toKstIso(new Date()) }
-  saveCache()
-  return result.data.day
 }
 
 /**
