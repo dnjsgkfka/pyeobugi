@@ -12,9 +12,9 @@ export default function Overlay(): React.JSX.Element {
   const stage = useRef<HTMLDivElement>(null)
   const turtle = useRef<TurtleHandle | null>(null)
   const posture = useRef<PostureResult | null>(null)
-  /** 목 길이는 매 틱 조금씩 더하고 뺀다 (늘어날 때와 줄어들 때 속도가 같게) */
+  /** 목 길이는 매 틱 조금씩 더하고 뺀다 (0 = 아직 재지 않음, 타이머를 걸 때 채운다) */
   const neck = useRef(0)
-  const lastTick = useRef(Date.now())
+  const lastTick = useRef(0)
 
   const bubble = useRef<HTMLDivElement>(null)
 
