@@ -1,5 +1,6 @@
 import { type AppEvent } from '@shared/schemas/events'
 import {
+  DeviceRegisterSchema,
   ErrorResponseSchema,
   EventsResponseSchema,
   ReportSummarySchema,
@@ -14,7 +15,7 @@ export type PostEventsResult =
   /** 큐 유지 + 백오프 재시도 */
   | {
       kind: 'retry'
-      reason: 'rate_limited' | 'server_error' | 'offline' | 'bad_response'
+      reason: 'rate_limited' | 'server_error' | 'offline' | 'bad_response' | 'device_secret_invalid'
       retryAfterSec?: number
     }
   /** 배치가 너무 큼 → 반으로 쪼개 다시 보내기 */
@@ -25,6 +26,18 @@ export type PostEventsResult =
       reason: 'invalid_request' | 'device_id_invalid' | 'payload_too_large' | 'unexpected_status'
       traceId?: string
     }
+
+/** `registerDevice` 결과 */
+export type RegisterResult =
+  /** 등록 성공 → secret 을 저장한다 */
+  | { kind: 'ok'; deviceSecret: string }
+  /** 409: 서버에는 이미 등록된 기기 ID. 로컬에 secret 이 없으면 기록을 포기하고 새 ID 로 다시 등록한다 */
+  | { kind: 'already' }
+  /** 404 / 405: 서버에 아직 등록 엔드포인트가 없다 (BE 머지 전) → secret 없이 진행 */
+  | { kind: 'unavailable' }
+  /** 네트워크·5xx·429 → 다음 실행이나 다음 호출에서 다시 시도 */
+  | { kind: 'retry'; reason: 'offline' | 'server_error' | 'rate_limited' | 'bad_response' }
+  | { kind: 'error'; status: number; code?: string }
 
 export type ReportResult =
   | { kind: 'ok'; data: ReportSummary }
@@ -37,6 +50,7 @@ export type ReportResult =
         | 'bad_response'
         | 'invalid_request'
         | 'device_id_invalid'
+        | 'device_secret_invalid'
         | 'unexpected_status'
       retryAfterSec?: number
       traceId?: string
@@ -46,12 +60,22 @@ export interface ApiClient {
   postEvents: (events: AppEvent[]) => Promise<PostEventsResult>
   /** @param date `YYYY-MM-DD` (KST). 생략하면 오늘 */
   getReportSummary: (date?: string) => Promise<ReportResult>
+  /** 기기 등록. 최초 실행에 1 회, 401 을 받았을 때 1 회 */
+  registerDevice: () => Promise<RegisterResult>
 }
 
 export interface ApiClientOptions {
   /** 예: `https://example.com/api` (끝에 `/` 없이) */
   baseUrl: string
-  deviceId: string
+  /** 함수로 받는다 — 409 로 기기 ID 가 바뀔 수 있다 */
+  deviceId: string | (() => string)
+  /** 등록해서 받아 둔 secret. 아직 없으면 null */
+  deviceSecret?: () => string | null
+  /**
+   * 401 `DEVICE_SECRET_INVALID` 을 받았을 때 부른다.
+   * 다시 등록해서 secret 을 갖췄으면 true → 그 요청을 한 번 더 보낸다.
+   */
+  onUnauthorized?: () => Promise<boolean>
   fetchImpl?: typeof fetch
   timeoutMs?: number
   /** 요청 본문은 절대 남기지 않는다. code / traceId 같은 식별 정보만. */
@@ -61,17 +85,27 @@ export interface ApiClientOptions {
 type Raw = { type: 'network' } | { type: 'http'; status: number; body: unknown }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
-  const { baseUrl, deviceId, timeoutMs = 10_000 } = options
+  const { baseUrl, timeoutMs = 10_000 } = options
+  const currentDeviceId =
+    typeof options.deviceId === 'function' ? options.deviceId : () => options.deviceId as string
+  const currentSecret = options.deviceSecret ?? ((): string | null => null)
   // 만들 때의 fetch 를 붙잡지 않고 호출할 때마다 현재 전역 fetch 를 쓴다 (mock 이 나중에 가로채도 동작)
   const fetchImpl: typeof fetch = options.fetchImpl ?? ((input, init) => fetch(input, init))
   const onError =
     options.onError ?? ((message, info): void => console.error(`[api] ${message}`, info ?? ''))
 
-  async function send(path: string, init: RequestInit = {}): Promise<Raw> {
+  async function once(path: string, init: RequestInit = {}): Promise<Raw> {
+    const secret = currentSecret()
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Device-Id': currentDeviceId()
+    }
+    // 서버가 아직 모르는 헤더면 무시한다 → BE 머지 전에도 그대로 동작한다
+    if (secret) headers['X-Device-Secret'] = secret
     try {
       const res = await fetchImpl(`${baseUrl}${path}`, {
         ...init,
-        headers: { 'Content-Type': 'application/json', 'X-Device-Id': deviceId },
+        headers,
         signal: AbortSignal.timeout(timeoutMs)
       })
       let body: unknown = null
@@ -85,6 +119,37 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       // 연결 실패, DNS 실패, 타임아웃 → 전부 오프라인으로 본다
       return { type: 'network' }
     }
+  }
+
+  /** 401 이면 다시 등록해 보고, 갖춰졌으면 같은 요청을 한 번만 더 보낸다 */
+  async function send(path: string, init: RequestInit = {}): Promise<Raw> {
+    const raw = await once(path, init)
+    if (raw.type !== 'http' || raw.status !== 401 || !options.onUnauthorized) return raw
+    const ready = await options.onUnauthorized()
+    return ready ? once(path, init) : raw
+  }
+
+  async function registerDevice(): Promise<RegisterResult> {
+    const raw = await once('/devices/register', { method: 'POST' })
+    if (raw.type === 'network') return { kind: 'retry', reason: 'offline' }
+
+    const { status, body } = raw
+    if (status === 200) {
+      const parsed = DeviceRegisterSchema.safeParse(body)
+      if (!parsed.success) {
+        onError('invalid register response shape')
+        return { kind: 'retry', reason: 'bad_response' }
+      }
+      return { kind: 'ok', deviceSecret: parsed.data.deviceSecret }
+    }
+    if (status === 409) return { kind: 'already' }
+    // BE 인증 PR 머지 전에는 엔드포인트가 없다
+    if (status === 404 || status === 405) return { kind: 'unavailable' }
+    if (status === 429) return { kind: 'retry', reason: 'rate_limited' }
+    if (status >= 500) return { kind: 'retry', reason: 'server_error' }
+    const { code, traceId } = errorInfo(body)
+    onError('register failed', { status, code, traceId })
+    return { kind: 'error', status, code }
   }
 
   function errorInfo(body: unknown): { code?: string; traceId?: string; retryAfterSec?: number } {
@@ -129,6 +194,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     }
     if (status === 429) return { kind: 'retry', reason: 'rate_limited', retryAfterSec }
     if (status >= 500) return { kind: 'retry', reason: 'server_error' }
+    if (status === 401) {
+      // 등록을 못 갖춘 상태 → 큐에 남겨 두고 조용히 다시 시도한다 (사용자에게는 알리지 않는다)
+      onError('events rejected: device secret invalid', { code, traceId })
+      return { kind: 'retry', reason: 'device_secret_invalid' }
+    }
 
     if (status === 400) {
       const reason = code === 'DEVICE_ID_INVALID' ? 'device_id_invalid' : 'invalid_request'
@@ -158,6 +228,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     onError('report request failed', { status, code, traceId })
     if (status === 429) return { kind: 'error', reason: 'rate_limited', retryAfterSec, traceId }
     if (status >= 500) return { kind: 'error', reason: 'server_error', traceId }
+    if (status === 401) return { kind: 'error', reason: 'device_secret_invalid', traceId }
     if (status === 400) {
       const reason = code === 'DEVICE_ID_INVALID' ? 'device_id_invalid' : 'invalid_request'
       return { kind: 'error', reason, traceId }
@@ -165,5 +236,5 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return { kind: 'error', reason: 'unexpected_status', traceId }
   }
 
-  return { postEvents, getReportSummary }
+  return { postEvents, getReportSummary, registerDevice }
 }
