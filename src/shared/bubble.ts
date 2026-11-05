@@ -79,7 +79,8 @@ export interface BubbleConditions {
  */
 export class BubblePicker {
   private shownAt = new Map<BubbleKind, number>()
-  private lastEndedAt = 0
+  /** 직전 말풍선이 끝난 시각. 아직 아무것도 안 띄웠으면 간격을 따지지 않는다 */
+  private lastEndedAt = Number.NEGATIVE_INFINITY
   private pending: BubbleKind[] = []
   private current: { kind: BubbleKind; until: number } | null = null
 
@@ -100,12 +101,17 @@ export class BubblePicker {
     if (this.current) {
       const { kind, until } = this.current
       const alive = COOLDOWN_MS[kind] === 0 ? holding.includes(kind) : now < until
-      // 더 급한 것이 생기면 바꿔 준다
+      if (!alive) {
+        // 제 수명을 다했다 → 다음 말풍선까지 최소 간격을 둔다
+        this.current = null
+        this.lastEndedAt = now
+        return null
+      }
+      // 더 급한 것이 생기면 간격 없이 바로 바꿔 준다
       const urgent = [...holding, ...this.pending].some(
         (next) => PRIORITY.indexOf(next) < PRIORITY.indexOf(kind)
       )
-      if (alive && !urgent) return BUBBLES[kind]
-      this.lastEndedAt = now
+      if (!urgent) return BUBBLES[kind]
       this.current = null
     }
 
