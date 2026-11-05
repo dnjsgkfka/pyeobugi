@@ -50,6 +50,10 @@ export const IPC = {
   CALIBRATION_START: 'calibration:start',
   /** detector → main → app: 기준 잡기 진행 상태 */
   CALIBRATION_STATE: 'calibration:state',
+  /** app → main → detector: 온보딩 프리뷰 켜기/끄기 */
+  PREVIEW_SET: 'preview:set',
+  /** detector → main → app: 축소한 카메라 프레임 (기기 안에서만 돈다) */
+  PREVIEW_FRAME: 'preview:frame',
   CAMERA_OPEN_SETTINGS: 'camera:open-settings',
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',
@@ -130,12 +134,17 @@ export interface PreloadApi {
     reset: () => void
     /** 자세 판정 상태 구독 */
     onState: (listener: (view: PostureView) => void) => () => void
-    /** 기준 잡기 시작 + 진행 상태 구독 */
+    /** 지금 자세를 기준으로 저장 + 결과 구독 */
     calibrate: () => void
     onCalibration: (listener: (phase: CalibrationPhase) => void) => () => void
+    /** 온보딩 카메라 프리뷰 (화면을 벗어나면 반드시 끈다) */
+    setPreview: (on: boolean) => void
+    onPreviewFrame: (listener: (frame: string) => void) => () => void
     /** detector 쪽 */
     onCommand: (listener: (command: DetectorCommand) => void) => () => void
     onCalibrateRequest: (listener: () => void) => () => void
+    onPreviewRequest: (listener: (on: boolean) => void) => () => void
+    sendPreviewFrame: (frame: string) => void
     sendUpdate: (update: DetectionUpdate) => void
     sendCalibration: (phase: CalibrationPhase) => void
     sendStatus: (status: DetectorStatus) => void

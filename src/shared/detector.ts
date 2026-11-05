@@ -60,8 +60,14 @@ export interface PostureDetector {
   stop: () => void
   /** 설정에 저장된 기준 자세. 없으면 판정하지 않고 샘플만 낸다 */
   setBaseline: (baseline: Baseline | null) => void
-  /** 기준 잡기 시작 (5초 수집) */
+  /**
+   * 지금 자세를 기준으로 저장한다 (버튼을 누른 순간).
+   * 한 프레임이 아니라 엔진이 1초 EMA 로 평활한 값이라 떨림에 덜 흔들린다.
+   */
   calibrate: () => void
+  /** 온보딩에서만 켠다. 축소한 프레임을 내보낸다 (기기 밖으로 나가지 않는다) */
+  setPreview: (on: boolean) => void
+  onPreview: (listener: (frame: string) => void) => () => void
   onUpdate: (listener: (update: DetectionUpdate) => void) => () => void
   onCalibration: (listener: (phase: CalibrationPhase) => void) => () => void
   onStatus: (listener: (status: DetectorStatus) => void) => () => void
