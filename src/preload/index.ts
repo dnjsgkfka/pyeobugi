@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { Baseline } from '@shared/calibration'
+import type { BubbleType } from '@shared/bubble'
 import type {
   CalibrationPhase,
   DetectionUpdate,
@@ -83,6 +84,10 @@ const api: PreloadApi = {
       subscribe<string>(IPC.PREVIEW_FRAME, listener),
     onCommand: (listener: (command: DetectorCommand) => void) =>
       subscribe<DetectorCommand>(IPC.DETECTOR_COMMAND, listener),
+    bubbleShown: (bubbleType: BubbleType) => ipcRenderer.send(IPC.BUBBLE_SHOWN, bubbleType),
+    setClickable: (on: boolean) => ipcRenderer.send(IPC.OVERLAY_CLICKABLE, on),
+    openRecalibrate: () => ipcRenderer.send(IPC.OVERLAY_RECALIBRATE),
+    onRecalibrate: (listener: () => void) => subscribe(IPC.OVERLAY_RECALIBRATE, listener),
     onCalibrateRequest: (listener: () => void) => subscribe(IPC.CALIBRATION_START, listener),
     onPreviewRequest: (listener: (on: boolean) => void) =>
       subscribe<boolean>(IPC.PREVIEW_SET, listener),
