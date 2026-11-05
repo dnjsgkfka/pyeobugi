@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
 import type { Baseline } from '@shared/calibration'
 import { IPC } from '@shared/ipc'
+import { applyOverlayVisibility } from './overlay'
 import { SettingsSchema, type Settings } from '@shared/schemas/settings'
 import { toKstIso } from '@shared/time'
 import { buildEvent } from './events'
@@ -72,6 +73,8 @@ export function registerOnboardingIpc(): void {
     const settings = getSettings().update(parsed.data as Partial<Settings>)
     broadcast(settings)
     scheduleFeatureEvent(settings.features)
+    // 오버레이 토글: 꺼져 있으면 거북이 창을 숨긴다
+    applyOverlayVisibility()
     return settings
   })
 
