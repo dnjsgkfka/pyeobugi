@@ -1,4 +1,5 @@
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { useEffect } from 'react'
+import { HashRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import AppLayout from './AppLayout'
 import { useSettings } from './useSettings'
 import DevDetector from './screens/DevDetector'
@@ -16,6 +17,13 @@ function Start({ onboarded }: { onboarded: boolean }): React.JSX.Element {
   return <Navigate to={onboarded ? '/report' : '/onboarding'} replace />
 }
 
+/** 거북이 말풍선("기준을 다시 잡아볼까요?")을 누르면 재설정 화면으로 */
+function RecalibrateFromOverlay(): null {
+  const navigate = useNavigate()
+  useEffect(() => window.api.posture.onRecalibrate(() => navigate('/recalibrate')), [navigate])
+  return null
+}
+
 function App(): React.JSX.Element {
   const { settings } = useSettings()
 
@@ -24,6 +32,7 @@ function App(): React.JSX.Element {
   return (
     <HashRouter>
       <div className="h-full">
+        <RecalibrateFromOverlay />
         <Routes>
           <Route path="/" element={<Start onboarded={settings.onboarded} />} />
           <Route path="/onboarding" element={<Intro />} />
