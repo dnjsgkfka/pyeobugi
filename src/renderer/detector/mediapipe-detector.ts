@@ -1,5 +1,5 @@
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
-import type { DetectorStatus, PostureDetector, PostureSample } from '@shared/detector'
+import type { DetectorStatus, PostureSample } from '@shared/detector'
 import { classifyCameraError } from './camera-error'
 import { MovingAverage, pitchFromMatrix, sizeFromLandmarks } from './pitch'
 
@@ -13,9 +13,21 @@ const asset = (path: string): string => new URL(`../mediapipe/${path}`, document
 const WASM_PATH = asset('wasm')
 const MODEL_PATH = asset('face_landmarker.task')
 
+/**
+ * 비교용으로 남긴 기존 구현 (Face Landmarker + 얼굴 변환 행렬에서 pitch).
+ * 지금 쓰이는 것은 BlazeFace 기반 `blazeface-detector.ts` 이고, 이 파일은
+ * #24 의 "변환 행렬 방식과 키포인트 근사 방식의 pitch 비교" 를 위해 둔다.
+ */
+export interface LandmarkerDetector {
+  start: () => Promise<void>
+  stop: () => void
+  onSample: (listener: (sample: PostureSample) => void) => () => void
+  onStatus: (listener: (status: DetectorStatus) => void) => () => void
+}
+
 type Listener<T> = (value: T) => void
 
-export function createMediaPipeDetector(): PostureDetector {
+export function createMediaPipeDetector(): LandmarkerDetector {
   const sampleListeners = new Set<Listener<PostureSample>>()
   const statusListeners = new Set<Listener<DetectorStatus>>()
   const pitchAvg = new MovingAverage(SMOOTHING_FRAMES)

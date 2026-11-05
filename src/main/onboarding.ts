@@ -6,7 +6,6 @@ import { SettingsSchema, type Settings } from '@shared/schemas/settings'
 import { toKstIso } from '@shared/time'
 import { buildEvent } from './events'
 import { getQueue } from './queue'
-import { configurePosture } from './posture'
 import { SettingsStore } from './settings'
 
 let store: SettingsStore | null = null
@@ -71,7 +70,6 @@ export function registerOnboardingIpc(): void {
     const parsed = SettingsSchema.partial().safeParse(patch)
     if (!parsed.success) return getSettings().value
     const settings = getSettings().update(parsed.data as Partial<Settings>)
-    configurePosture() // 민감도가 바뀌면 판정 기준도 바뀐다
     broadcast(settings)
     scheduleFeatureEvent(settings.features)
     return settings
@@ -86,7 +84,6 @@ export function registerOnboardingIpc(): void {
       onboarded: true,
       baseline: { ...value, savedAt: toKstIso(new Date()) }
     })
-    configurePosture() // 새 기준으로 판정을 다시 시작한다
     broadcast(settings)
     // 기준값 자체는 보내지 않는다. 완료 사실만 기록한다.
     getQueue().enqueue(

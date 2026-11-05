@@ -15,11 +15,16 @@ export interface PostureResult {
   state: PostureState
   /** 나쁜 자세로 막 확정된 순간에만 채워진다 → 이때 한 번만 POSTURE_BAD 를 보낸다 */
   enteredBad: Severity | null
+  /**
+   * 나쁜 자세가 시작된 시각 (샘플 시계). 확정된 순간에만 채워진다.
+   * POSTURE_BAD 의 occurredAt 은 판정 시각이 아니라 이 시각이어야 한다 (AI/BE 인수인계 문서).
+   */
+  badSince: number | null
   /** slipping 일 때 확정까지의 진행률 0~1 */
   progress: number
 }
 
-const GOOD: PostureResult = { state: 'good', enteredBad: null, progress: 0 }
+const GOOD: PostureResult = { state: 'good', enteredBad: null, badSince: null, progress: 0 }
 
 /**
  * 자세 판정 엔진.
@@ -70,7 +75,7 @@ export class PostureEngine {
       this.slipSince = null
       this.recoverSince = null
       this.peakScore = 0
-      return { state: 'away', enteredBad: null, progress: 0 }
+      return { state: 'away', enteredBad: null, badSince: null, progress: 0 }
     }
 
     if (this.state === 'away') this.state = 'good'
@@ -97,15 +102,21 @@ export class PostureEngine {
     const held = now - this.slipSince
     if (held < this.thresholds.holdMs) {
       this.state = 'slipping'
-      return { state: 'slipping', enteredBad: null, progress: held / this.thresholds.holdMs }
+      return {
+        state: 'slipping',
+        enteredBad: null,
+        badSince: null,
+        progress: held / this.thresholds.holdMs
+      }
     }
 
     this.state = 'bad'
+    const since = this.slipSince
     this.slipSince = null
     this.recoverSince = null
     const severity = severityOf(this.peakScore, this.thresholds)
     this.peakScore = 0
-    return { state: 'bad', enteredBad: severity, progress: 1 }
+    return { state: 'bad', enteredBad: severity, badSince: since, progress: 1 }
   }
 
   /** 나쁜 자세로 확정된 뒤 — 복귀를 기다린다 (기준은 exitScore, 진입보다 낮다) */
@@ -113,12 +124,12 @@ export class PostureEngine {
     if (stillOver) {
       // 다시 나빠졌다 → 복귀 시계를 되돌린다
       this.recoverSince = null
-      return { state: 'bad', enteredBad: null, progress: 1 }
+      return { state: 'bad', enteredBad: null, badSince: null, progress: 1 }
     }
 
     if (this.recoverSince === null) this.recoverSince = now
     if (now - this.recoverSince < this.thresholds.recoverMs) {
-      return { state: 'bad', enteredBad: null, progress: 1 }
+      return { state: 'bad', enteredBad: null, badSince: null, progress: 1 }
     }
 
     this.state = 'good'

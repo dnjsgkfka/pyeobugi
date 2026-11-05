@@ -5,7 +5,7 @@ import { registerCameraPermissions, registerDetectorIpc } from './detector'
 import { registerIpc } from './ipc'
 import { initSettings, registerOnboardingIpc } from './onboarding'
 import { registerPomodoroIpc } from './pomodoro'
-import { configurePosture, registerPostureIpc } from './posture'
+import { registerPostureIpc } from './posture'
 import { initReport, registerReportIpc } from './report'
 import { initQueue } from './queue'
 import { registerShutdown, startSession } from './session'
@@ -45,7 +45,6 @@ if (!app.requestSingleInstanceLock()) {
     registerPomodoroIpc()
     initReport()
     registerReportIpc()
-    configurePosture()
     registerCameraPermissions()
     createWindows()
     createTray()

@@ -1,4 +1,4 @@
-import type { PostureResult } from './posture-engine'
+import type { PostureFeedback } from './ai/feedback'
 
 /** 거북이가 보여 줄 상태. 우선순위: 자리비움 > 나쁨 > 좋음 */
 export type PetMood = 'away' | 'bad' | 'good'
@@ -19,10 +19,15 @@ export const NECK_SHRINK_MS = 450
 /** 너무 많이 감기지 않게 (화면 폭만큼 감기면 더 늘려도 티가 안 난다) */
 export const NECK_MAX = 24
 
-export function moodFrom(posture: PostureResult | null): PetMood {
-  if (posture?.state === 'away') return 'away'
-  if (posture?.state === 'bad') return 'bad'
-  return 'good'
+/**
+ * 판정 상태를 거북이 표정으로 옮긴다.
+ * - UNAVAILABLE(얼굴 없음)·UNCALIBRATED → 자리비움처럼 그냥 돌아다닌다
+ * - PENDING_BAD 는 아직 아니다 (확정된 BAD 에서만 목이 늘어난다)
+ * - RECOVERING 은 회복을 기다리는 중이라 목이 줄어들기 시작한다
+ */
+export function moodFrom(posture: PostureFeedback | null): PetMood {
+  if (!posture || posture.phase === 'UNAVAILABLE' || posture.phase === 'UNCALIBRATED') return 'away'
+  return posture.phase === 'BAD' ? 'bad' : 'good'
 }
 
 /**
@@ -36,6 +41,11 @@ export function nextNeck(neck: number, mood: PetMood, dtMs: number): number {
   return Math.max(0, neck - dtMs / NECK_SHRINK_MS)
 }
 
-export function petStateFrom(posture: PostureResult | null, neck: number): PetState {
-  return { mood: moodFrom(posture), neck }
+/**
+ * 거북목이 시작된 시각으로 목 길이를 구한다.
+ * 추론은 1초에 한 번뿐이지만 이 값은 지금 시각으로 계산하므로 매 프레임 조금씩 늘어난다
+ * (판정 결과가 올 때마다 맞추면 1초마다 한 칸씩 뛰어서 계단처럼 보인다).
+ */
+export function neckSince(badSince: number, now: number): number {
+  return Math.min(NECK_MAX, Math.max(0, now - badSince) / NECK_GROW_MS)
 }

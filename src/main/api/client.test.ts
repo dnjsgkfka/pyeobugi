@@ -240,3 +240,40 @@ describe('기기 인증', () => {
     expect(await client().getReportSummary()).toMatchObject({ kind: 'ok' })
   })
 })
+
+describe('429 재시도 대기 시간', () => {
+  /** 본문/헤더만 바꿔 끼우는 가짜 서버 */
+  function with429(init: ResponseInit, body: unknown): ApiClient {
+    return createApiClient({
+      baseUrl: BASE,
+      deviceId: DEVICE_ID,
+      fetchImpl: () => Promise.resolve(new Response(JSON.stringify(body), init)),
+      onError: () => {}
+    })
+  }
+
+  it('본문의 retryAfter 를 쓴다', async () => {
+    const api = with429({ status: 429 }, { code: 'RATE_LIMITED', retryAfter: 7 })
+    expect(await api.postEvents([makeEvent('SESSION_START')])).toMatchObject({
+      kind: 'retry',
+      reason: 'rate_limited',
+      retryAfterSec: 7
+    })
+  })
+
+  it('본문에 없으면 Retry-After 헤더를 쓴다', async () => {
+    const api = with429({ status: 429, headers: { 'Retry-After': '12' } }, { code: 'RATE_LIMITED' })
+    expect(await api.postEvents([makeEvent('SESSION_START')])).toMatchObject({
+      retryAfterSec: 12
+    })
+  })
+
+  it('리포트 조회도 헤더를 본다', async () => {
+    const api = with429({ status: 429, headers: { 'Retry-After': '3' } }, { code: 'RATE_LIMITED' })
+    expect(await api.getReportSummary()).toMatchObject({
+      kind: 'error',
+      reason: 'rate_limited',
+      retryAfterSec: 3
+    })
+  })
+})
