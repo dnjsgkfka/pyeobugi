@@ -25,12 +25,17 @@ import type {
   PostureDetector
 } from '@shared/detector'
 import { classifyCameraError } from './camera-error'
-import { closeCamera, openCamera } from './camera'
+import { closeCamera, openCamera, sizeOfStream } from './camera'
 import { createFaceDetector, detectFace } from './face-detector'
 
-/** 온보딩 프리뷰 간격과 폭 (추론과 별개로 돌린다) */
+/**
+ * 온보딩 프리뷰 (추론과 별개로 돌린다).
+ * 카메라가 주는 해상도를 그대로 보낸다 — 창 폭(1280)보다 커도 줄이지 않는다.
+ * 너무 커지면 IPC 가 버거워지므로 가로 1920 에서만 자른다.
+ */
 const PREVIEW_MS = 100
-const PREVIEW_WIDTH = 320
+const PREVIEW_MAX_WIDTH = 1920
+const PREVIEW_QUALITY = 0.7
 
 type Listener<T> = (value: T) => void
 
@@ -46,6 +51,12 @@ export function createBlazeFaceDetector(): PostureDetector {
   let timer: ReturnType<typeof setTimeout> | undefined
   let previewTimer: ReturnType<typeof setInterval> | undefined
   let previewCanvas: HTMLCanvasElement | null = null
+  /** 프리뷰 요청이 카메라보다 먼저 올 수 있어 상태를 들고 있는다 */
+  let previewOn = false
+  /** 지금 열린 스트림이 프리뷰(큰 해상도)로 열린 것인가 */
+  let openedForPreview = false
+  /** start() 가 겹쳐 들어와 카메라·모델이 두 개 뜨는 것을 막는다 */
+  let starting: Promise<void> | null = null
   let running = false
 
   let baseline: Baseline | null = null
@@ -89,8 +100,9 @@ export function createBlazeFaceDetector(): PostureDetector {
   /** 프리뷰: 추론과 별개로 돌린다. 축소한 JPEG 만 내보내고 원본 프레임은 이 창에 남는다 */
   function sendPreview(): void {
     if (!video || video.videoWidth === 0) return
-    const scale = PREVIEW_WIDTH / video.videoWidth
-    const width = PREVIEW_WIDTH
+    // 카메라가 주는 크기 그대로 (아주 큰 경우에만 줄인다)
+    const scale = Math.min(1, PREVIEW_MAX_WIDTH / video.videoWidth)
+    const width = Math.round(video.videoWidth * scale)
     const height = Math.round(video.videoHeight * scale)
     if (!previewCanvas || previewCanvas.width !== width || previewCanvas.height !== height) {
       previewCanvas = document.createElement('canvas')
@@ -100,7 +112,7 @@ export function createBlazeFaceDetector(): PostureDetector {
     const context = previewCanvas.getContext('2d')
     if (!context) return
     context.drawImage(video, 0, 0, width, height)
-    const frame = previewCanvas.toDataURL('image/jpeg', 0.5)
+    const frame = previewCanvas.toDataURL('image/jpeg', PREVIEW_QUALITY)
     previewListeners.forEach((listener) => listener(frame))
   }
 
@@ -135,37 +147,53 @@ export function createBlazeFaceDetector(): PostureDetector {
     timer = setTimeout(loop, intervalMs)
   }
 
+  /** 카메라를 열어 video 에 붙인다. 프리뷰면 큰 해상도로 연다 */
+  async function attach(preview: boolean): Promise<void> {
+    const next = await openCamera(preview)
+    closeCamera(stream)
+    stream = next
+    openedForPreview = preview
+    video ??= document.createElement('video')
+    video.srcObject = next
+    video.muted = true
+    video.playsInline = true
+    await video.play()
+    console.log(`[detector] camera ${sizeOfStream(next)}${preview ? ' (preview)' : ''}`)
+  }
+
   async function start(): Promise<void> {
     if (running) return
-    setStatus('starting')
-    try {
-      stream = await openCamera()
-    } catch (error) {
-      const { name, message } = (error ?? {}) as Error
-      console.error(`[detector] camera failed: ${name} ${message}`)
-      setStatus(classifyCameraError(error))
-      return
-    }
-    try {
-      detector ??= await createFaceDetector()
-      video = document.createElement('video')
-      video.srcObject = stream
-      video.muted = true
-      video.playsInline = true
-      await video.play()
-    } catch (error) {
-      // detector 창은 숨겨져 있어 콘솔이 보이지 않는다 → main 터미널에도 남긴다
-      console.error('[detector] failed to start:', (error as Error)?.message ?? error)
-      stop()
-      setStatus('error')
-      return
-    }
-    running = true
-    engine = initialEngineState
-    feedback = initialFeedback
-    distance = initialDistanceState
-    setStatus('running')
-    loop()
+    if (starting) return starting
+    starting = (async () => {
+      setStatus('starting')
+      try {
+        await attach(previewOn)
+      } catch (error) {
+        const { name, message } = (error ?? {}) as Error
+        console.error(`[detector] camera failed: ${name} ${message}`)
+        setStatus(classifyCameraError(error))
+        return
+      }
+      try {
+        detector ??= await createFaceDetector()
+      } catch (error) {
+        // detector 창은 숨겨져 있어 콘솔이 보이지 않는다 → main 터미널에도 남긴다
+        console.error('[detector] failed to start:', (error as Error)?.message ?? error)
+        stop()
+        setStatus('error')
+        return
+      }
+      running = true
+      if (previewOn) previewTimer ??= setInterval(sendPreview, PREVIEW_MS)
+      engine = initialEngineState
+      feedback = initialFeedback
+      distance = initialDistanceState
+      setStatus('running')
+      loop()
+    })().finally(() => {
+      starting = null
+    })
+    return starting
   }
 
   function stop(): void {
@@ -173,6 +201,9 @@ export function createBlazeFaceDetector(): PostureDetector {
     clearTimeout(timer)
     clearInterval(previewTimer)
     previewTimer = undefined
+    previewCanvas = null
+    previewOn = false
+    openedForPreview = false
     engine = initialEngineState
     feedback = initialFeedback
     distance = initialDistanceState
@@ -198,8 +229,15 @@ export function createBlazeFaceDetector(): PostureDetector {
     },
     calibrate: captureBaseline,
     setPreview: (on) => {
+      previewOn = on
       clearInterval(previewTimer)
-      previewTimer = on ? setInterval(sendPreview, PREVIEW_MS) : undefined
+      previewTimer = on && running ? setInterval(sendPreview, PREVIEW_MS) : undefined
+      // 켜 둔 스트림의 해상도 변경을 거부하는 카메라가 있어서, 프리뷰는 다시 열어 바꾼다.
+      // 아직 안 열렸으면 start() 가 이 상태를 보고 알맞게 연다
+      if (!running || openedForPreview === on) return
+      void attach(on).catch((error: unknown) => {
+        console.warn(`[detector] could not reopen camera: ${(error as Error)?.name}`)
+      })
     },
     onPreview: (listener) => subscribe(previewListeners, listener),
     onUpdate: (listener) => subscribe(updateListeners, listener),
