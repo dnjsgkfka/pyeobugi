@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import {
-  CalibrationCollector,
-  FaceTracker,
-  type Baseline,
-  type CalibrationState,
-  type FaceState
-} from '@shared/calibration'
+import { CALIBRATION } from '@shared/ai/calibration'
+import type { CalibrationPhase } from '@shared/detector'
+import type { PostureView } from '@shared/ipc'
 import { Button } from '@renderer/ui/Button'
 import { Dialog } from '@renderer/ui/Dialog'
 import { OnboardingHeader } from './OnboardingHeader'
 import { OnboardingPanel } from './OnboardingPanel'
+
+const SECONDS = CALIBRATION.durationMs / 1000
 
 /** Figma 문구 (14:4442 얼굴 찾기 / 14:4667 기준 잡기) */
 const COPY = {
@@ -20,119 +18,96 @@ const COPY = {
   },
   ready: {
     title: '바른 자세로 앉은 뒤 기준을 잡아주세요.',
-    body: '지금 자세가 앞으로 교정할 기준이 돼요. 버튼을 누르는 순간의 위치가 저장돼요.'
+    // TODO(디자인): Figma 는 "버튼을 누르는 순간" 이지만 실제로는 5초를 재서 중앙값을 쓴다
+    body: `지금 자세가 앞으로 교정할 기준이 돼요. 버튼을 누르면 ${SECONDS}초 동안 자세를 재요.`
   },
-  'face-lost': {
-    title: '얼굴을 놓쳤어요',
-    body: '재는 동안 얼굴이 보이지 않았어요.\n자리에 앉은 채로 다시 시도해 주세요.'
-  },
-  'not-enough-samples': {
-    title: '기준을 잡지 못했어요',
-    body: '얼굴이 잘 보이지 않았어요.\n조명을 밝게 하고 다시 시도해 주세요.'
+  measuring: {
+    title: `${SECONDS}초 동안 그대로 있어 주세요.`,
+    body: '정면을 보고 움직임을 줄이면 더 정확해요.'
   }
 } as const
 
 export default function Calibrate(): React.JSX.Element {
   const navigate = useNavigate()
   const isRecalibration = useLocation().pathname === '/recalibrate'
-  const collector = useRef(new CalibrationCollector())
-  const tracker = useRef(new FaceTracker())
   const saved = useRef(false)
-  /** 버튼을 누른 뒤부터 3초를 재기 시작한다 */
-  const measuring = useRef(false)
 
-  const [face, setFace] = useState<FaceState>('searching')
-  const [armed, setArmed] = useState(false)
-  const [state, setState] = useState<CalibrationState>({ phase: 'waiting' })
-
-  // 저장은 샘플을 받은 그 자리에서 한 번만 한다 (effect 안에서 setState 를 부르지 않도록)
-  const save = useCallback(
-    (baseline: Baseline) => {
-      if (saved.current) return
-      saved.current = true
-      void window.api.settings.saveCalibration(baseline, isRecalibration)
-    },
-    [isRecalibration]
-  )
+  const [face, setFace] = useState(false)
+  const [phase, setPhase] = useState<CalibrationPhase>({ phase: 'idle' })
+  const [done, setDone] = useState(false)
 
   useEffect(() => {
     window.api.posture.start()
-    return window.api.posture.onSample((sample) => {
-      if (!measuring.current) {
-        setFace(tracker.current.push(sample))
-        return
-      }
-      const next = collector.current.push(sample)
-      setState(next)
-      if (next.phase === 'done') save(next.baseline)
+    const offState = window.api.posture.onState((view: PostureView) => {
+      // 얼굴이 보이는지만 본다 (판정은 기준이 있어야 돌아간다)
+      setFace(view.feedback.phase !== 'UNAVAILABLE')
     })
-  }, [save])
+    const offCalibration = window.api.posture.onCalibration((next) => {
+      setPhase(next)
+      if (next.phase !== 'complete' || saved.current) return
+      saved.current = true
+      void window.api.settings
+        .saveCalibration(next.baseline, isRecalibration)
+        .then(() => setDone(true))
+    })
+    return () => {
+      offState()
+      offCalibration()
+    }
+  }, [isRecalibration])
 
   const start = useCallback(() => {
-    collector.current.reset()
-    setState({ phase: 'waiting' })
-    measuring.current = true
-    setArmed(true)
-  }, [])
-
-  const retry = useCallback(() => {
-    collector.current.reset()
-    tracker.current.reset()
-    measuring.current = false
     saved.current = false
-    setArmed(false)
-    setFace('searching')
-    setState({ phase: 'waiting' })
+    window.api.posture.calibrate()
   }, [])
 
-  // 설정에서 들어왔으면 설정으로, 온보딩이었으면 리포트로
-  const finish = useCallback(() => {
-    navigate(isRecalibration ? '/settings' : '/report', { replace: true })
-  }, [isRecalibration, navigate])
+  const collecting = phase.phase === 'collecting'
+  const failed = phase.phase === 'failed'
+  // 남은 초로 진행률을 만든다 (판정은 detector 가 한다)
+  const progress = collecting ? 1 - phase.remainingSec / SECONDS : 0
 
-  const failed = state.phase === 'failed'
-  const found = face === 'found'
-  const progress = state.phase === 'measuring' ? state.progress : 0
+  const copy = failed
+    ? { title: '기준을 잡지 못했어요', body: phase.message }
+    : collecting
+      ? COPY.measuring
+      : face
+        ? COPY.ready
+        : COPY.searching
 
   return (
     <div className="relative h-full w-full bg-grey-100">
-      <OnboardingHeader current={found || armed ? 3 : 2} />
+      <OnboardingHeader current={face || collecting ? 3 : 2} />
 
-      {failed ? (
-        <OnboardingPanel title={COPY[state.reason].title} body={COPY[state.reason].body}>
-          <Button size="lg" className="w-full" onClick={retry}>
+      <OnboardingPanel title={copy.title} body={copy.body}>
+        {collecting ? (
+          <div
+            className="h-2 w-full overflow-hidden rounded-pill bg-grey-300"
+            role="progressbar"
+            aria-valuenow={Math.round(progress * 100)}
+          >
+            <div
+              className="h-full rounded-pill bg-main3 transition-[width] duration-300"
+              style={{ width: `${progress * 100}%` }}
+            />
+          </div>
+        ) : failed ? (
+          <Button size="lg" className="w-full" onClick={start}>
             다시 시도
           </Button>
-        </OnboardingPanel>
-      ) : found || armed ? (
-        <OnboardingPanel title={COPY.ready.title} body={COPY.ready.body}>
-          {armed ? (
-            <div
-              className="h-2 w-full overflow-hidden rounded-pill bg-grey-300"
-              role="progressbar"
-              aria-valuenow={Math.round(progress * 100)}
-            >
-              <div
-                className="h-full rounded-pill bg-main3 transition-[width] duration-100"
-                style={{ width: `${progress * 100}%` }}
-              />
-            </div>
-          ) : (
-            <Button size="lg" className="w-full" onClick={start}>
-              기준 잡기
-            </Button>
-          )}
-        </OnboardingPanel>
-      ) : (
-        <OnboardingPanel title={COPY.searching.title} body={COPY.searching.body} />
-      )}
+        ) : face ? (
+          <Button size="lg" className="w-full" onClick={start}>
+            기준 잡기
+          </Button>
+        ) : null}
+      </OnboardingPanel>
 
-      {state.phase === 'done' && (
+      {done && (
         <Dialog
           title="기준 저장 완료"
           body={'이제 이 자세를 기준으로 살펴볼게요.\n기준은 설정에서 언제든 다시 잡을 수 있어요.'}
           confirmLabel="시작하기"
-          onConfirm={finish}
+          // 설정에서 들어왔으면 설정으로, 온보딩이었으면 리포트로
+          onConfirm={() => navigate(isRecalibration ? '/settings' : '/report', { replace: true })}
         />
       )}
     </div>

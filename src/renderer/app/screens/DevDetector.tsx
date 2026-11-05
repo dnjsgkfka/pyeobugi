@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { DetectorStatus, PostureSample } from '@shared/detector'
-import type { PostureResult } from '@shared/posture-engine'
+import type { PostureView } from '@shared/ipc'
 import { Button } from '@renderer/ui/Button'
 
 const STATUS_TEXT: Record<DetectorStatus, string> = {
@@ -25,7 +25,7 @@ function Row({ label, value }: { label: string; value: string }): React.JSX.Elem
 export default function DevDetector(): React.JSX.Element {
   const [status, setStatus] = useState<DetectorStatus>('idle')
   const [sample, setSample] = useState<PostureSample | null>(null)
-  const [posture, setPosture] = useState<PostureResult | null>(null)
+  const [posture, setPosture] = useState<PostureView | null>(null)
   const [fps, setFps] = useState(0)
   // 렌더 중에는 performance.now() 를 부르지 않는다 (react-hooks/purity) → useEffect 에서 채운다
   const counter = useRef({ frames: 0, since: 0 })
@@ -88,11 +88,31 @@ export default function DevDetector(): React.JSX.Element {
           value={sample?.size != null ? sample.size.toFixed(3) : '-'}
         />
         <Row label="fps" value={String(fps)} />
-        <Row label="판정" value={posture ? posture.state : '-'} />
+        <Row label="판정" value={posture?.feedback.phase ?? '-'} />
         <Row
-          label="확정까지"
-          value={posture?.state === 'slipping' ? `${Math.round(posture.progress * 100)}%` : '-'}
+          label="점수"
+          value={posture?.feedback.score != null ? posture.feedback.score.toFixed(1) : '-'}
         />
+        <Row label="severity" value={posture?.feedback.severity ?? '-'} />
+        <Row
+          label="거북목 지속"
+          value={
+            posture && posture.feedback.badDurationMs > 0
+              ? `${(posture.feedback.badDurationMs / 1000).toFixed(1)}초`
+              : '-'
+          }
+        />
+        <Row
+          label="마지막 종료"
+          value={posture?.feedback.lastExit ? posture.feedback.lastExit.reason : '-'}
+        />
+        <Row
+          label="거리 변화 안내"
+          value={
+            posture?.distance.suggested ? `권유 (${posture.distance.direction ?? '-'})` : '아니요'
+          }
+        />
+        <Row label="추론 간격" value={sample ? `${fps} 회/초` : '-'} />
       </div>
 
       <div className="flex gap-2">
