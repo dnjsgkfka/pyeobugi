@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { moodFrom, nextNeck, type PetState } from '@shared/pet'
-import type { PostureResult } from '@shared/posture-engine'
+import { moodFrom, neckSince, nextNeck, type PetState } from '@shared/pet'
+import type { PostureView } from '@shared/ipc'
 import './turtle.css'
 import { runTurtle, type TurtleHandle } from './turtle-animation'
 import { TURTLE_HTML } from './turtle-art'
@@ -11,7 +11,7 @@ const UPDATE_MS = 100
 export default function Overlay(): React.JSX.Element {
   const stage = useRef<HTMLDivElement>(null)
   const turtle = useRef<TurtleHandle | null>(null)
-  const posture = useRef<PostureResult | null>(null)
+  const posture = useRef<PostureView | null>(null)
   /** 목 길이는 매 틱 조금씩 더하고 뺀다 (0 = 아직 재지 않음, 타이머를 걸 때 채운다) */
   const neck = useRef(0)
   const lastTick = useRef(0)
@@ -40,8 +40,14 @@ export default function Overlay(): React.JSX.Element {
       const now = Date.now()
       const dt = now - lastTick.current
       lastTick.current = now
-      const mood = moodFrom(posture.current)
-      neck.current = nextNeck(neck.current, mood, dt)
+      const feedback = posture.current?.feedback ?? null
+      const mood = moodFrom(feedback)
+      // 거북목이면 '시작 시각부터 지금까지' 로 계산한다 — 판정 결과(1초 간격)에 맞추면 계단처럼 뛴다.
+      // 자세가 돌아오면 틱으로 부드럽게 줄인다
+      neck.current =
+        mood === 'bad' && feedback?.badSince != null
+          ? neckSince(feedback.badSince, now)
+          : nextNeck(neck.current, mood, dt)
       const next: PetState = { mood, neck: neck.current }
       turtle.current?.setNeck(next.neck)
       setPet((prev) => (prev.mood === next.mood && prev.neck === next.neck ? prev : next))
