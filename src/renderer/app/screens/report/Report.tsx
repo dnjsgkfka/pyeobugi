@@ -43,6 +43,15 @@ function distributionSeconds(distribution: ReportSummary['distribution']): numbe
   return distribution.goodSeconds + distribution.mildSeconds + distribution.turtleSeconds
 }
 
+/**
+ * 이 날짜에 보여 줄 기록이 있는가.
+ * hasData 가 기기 전체 기준으로 오는 서버도 있어서(AI 레포 mock), 그 날 사용 시간까지 함께 본다.
+ * 그러지 않으면 기록 없는 날에 0% · 0회 · 0분 화면이 떠 버린다.
+ */
+function hasRecord(data: ReportSummary): boolean {
+  return data.hasData && data.day.usageSeconds > 0
+}
+
 /** 지표 카드 4개. 순서와 문구는 Figma 그대로. */
 function Stats({ data }: { data: ReportSummary }): React.JSX.Element {
   const { day, week } = data
@@ -134,9 +143,9 @@ export default function Report(): React.JSX.Element {
       {view?.kind === 'error' && (
         <ReportError reason={view.reason} onRetry={reload} busy={reloading} />
       )}
-      {data && !data.hasData && <ReportEmpty />}
+      {data && !hasRecord(data) && <ReportEmpty />}
 
-      {data?.hasData && (
+      {data && hasRecord(data) && (
         <div className="flex h-[699px] flex-col gap-3">
           <Stats data={data} />
           <div className="flex flex-1 items-stretch gap-3">
