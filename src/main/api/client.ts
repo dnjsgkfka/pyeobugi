@@ -82,7 +82,10 @@ export interface ApiClientOptions {
   onError?: (message: string, info?: Record<string, unknown>) => void
 }
 
-type Raw = { type: 'network' } | { type: 'http'; status: number; body: unknown }
+type Raw =
+  | { type: 'network' }
+  /** retryAfterHeaderSec: 본문에 retryAfter 가 없을 때 쓰는 Retry-After 헤더 값 (초) */
+  | { type: 'http'; status: number; body: unknown; retryAfterHeaderSec?: number }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const { baseUrl, timeoutMs = 10_000 } = options
@@ -114,7 +117,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       } catch {
         body = null
       }
-      return { type: 'http', status: res.status, body }
+      return { type: 'http', status: res.status, body, retryAfterHeaderSec: retryAfterOf(res) }
     } catch {
       // 연결 실패, DNS 실패, 타임아웃 → 전부 오프라인으로 본다
       return { type: 'network' }
@@ -152,6 +155,18 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return { kind: 'error', status, code }
   }
 
+  /** Retry-After 는 초 또는 HTTP 날짜로 온다 */
+  function retryAfterOf(res: Response): number | undefined {
+    const raw = res.headers.get('Retry-After')
+    if (!raw) return undefined
+    const seconds = Number(raw)
+    if (Number.isFinite(seconds)) return seconds > 0 ? Math.ceil(seconds) : undefined
+    const at = Date.parse(raw)
+    if (Number.isNaN(at)) return undefined
+    const left = Math.ceil((at - Date.now()) / 1000)
+    return left > 0 ? left : undefined
+  }
+
   function errorInfo(body: unknown): { code?: string; traceId?: string; retryAfterSec?: number } {
     const parsed = ErrorResponseSchema.safeParse(body)
     if (!parsed.success) return {}
@@ -186,7 +201,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return { kind: 'done', accepted, duplicated, rejected }
     }
 
-    const { code, traceId, retryAfterSec } = errorInfo(body)
+    const { code, traceId, retryAfterSec: fromBody } = errorInfo(body)
+    const retryAfterSec = fromBody ?? raw.retryAfterHeaderSec
     if (status === 413) {
       if (events.length > 1) return { kind: 'split' }
       onError('single event too large, discarding', { code, traceId })
@@ -224,7 +240,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return { kind: 'ok', data: parsed.data }
     }
 
-    const { code, traceId, retryAfterSec } = errorInfo(body)
+    const { code, traceId, retryAfterSec: fromBody } = errorInfo(body)
+    const retryAfterSec = fromBody ?? raw.retryAfterHeaderSec
     onError('report request failed', { status, code, traceId })
     if (status === 429) return { kind: 'error', reason: 'rate_limited', retryAfterSec, traceId }
     if (status >= 500) return { kind: 'error', reason: 'server_error', traceId }
