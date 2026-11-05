@@ -5,6 +5,7 @@ import { registerCameraPermissions, registerDetectorIpc } from './detector'
 import { registerIpc } from './ipc'
 import { initSettings, registerOnboardingIpc } from './onboarding'
 import { registerPomodoroIpc } from './pomodoro'
+import { applyOverlayVisibility, registerOverlayIpc } from './overlay'
 import { registerPostureIpc } from './posture'
 import { initReport, registerReportIpc } from './report'
 import { initQueue } from './queue'
@@ -42,11 +43,14 @@ if (!app.requestSingleInstanceLock()) {
     registerOnboardingIpc()
     registerDetectorIpc()
     registerPostureIpc()
+    registerOverlayIpc()
     registerPomodoroIpc()
     initReport()
     registerReportIpc()
     registerCameraPermissions()
     createWindows()
+    // 설정에서 오버레이를 꺼 뒀으면 거북이 창을 띄우지 않는다
+    applyOverlayVisibility()
     createTray()
 
     app.on('activate', () => {
