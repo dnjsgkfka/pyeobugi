@@ -1,7 +1,20 @@
 import type { Baseline } from './calibration'
-import type { DetectorCommand, DetectorStatus, PostureSample } from './detector'
+import type { PostureFeedback } from './ai/feedback'
+import type { DistanceState } from './ai/distance'
+import type {
+  CalibrationPhase,
+  DetectionUpdate,
+  DetectorCommand,
+  DetectorStatus,
+  PostureSample
+} from './detector'
 import type { PomodoroState } from './pomodoro'
-import type { PostureResult } from './posture-engine'
+
+/** main → app/overlay: 지금 자세 상태 (AI 모듈의 feedback + 거리 변화 안내) */
+export interface PostureView {
+  feedback: PostureFeedback
+  distance: DistanceState
+}
 
 /** 감지가 돌아간 시간 */
 export interface DetectionState {
@@ -31,12 +44,18 @@ export const IPC = {
   DETECTOR_GET_STATUS: 'detector:get-status',
   /** detector → main → app: 자세 샘플 (서버로 보내지 않음) */
   POSTURE_SAMPLE: 'posture:sample',
+  /** detector → main: 추론 결과 묶음 (판정 상태 + 전이) */
+  POSTURE_UPDATE: 'posture:update',
+  /** app → main → detector: 기준 잡기 시작 */
+  CALIBRATION_START: 'calibration:start',
+  /** detector → main → app: 기준 잡기 진행 상태 */
+  CALIBRATION_STATE: 'calibration:state',
   CAMERA_OPEN_SETTINGS: 'camera:open-settings',
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',
   /** 기준 자세 저장 + CALIBRATION_COMPLETED 이벤트 */
   CALIBRATION_SAVE: 'calibration:save',
-  /** main → app/overlay: 판정 결과 (good / slipping / bad / away) */
+  /** main → app/overlay: 판정 상태 (feedback + 거리 변화 안내) */
   POSTURE_STATE: 'posture:state',
   /** 감지 경과 시간 */
   DETECTION_STATE: 'detection:state',
@@ -109,11 +128,16 @@ export interface PreloadApi {
     onDetection: (listener: (state: DetectionState) => void) => () => void
     /** 멈추고 경과 시간을 0 으로 */
     reset: () => void
-    /** 자세 판정 결과 구독 */
-    onState: (listener: (result: PostureResult) => void) => () => void
+    /** 자세 판정 상태 구독 */
+    onState: (listener: (view: PostureView) => void) => () => void
+    /** 기준 잡기 시작 + 진행 상태 구독 */
+    calibrate: () => void
+    onCalibration: (listener: (phase: CalibrationPhase) => void) => () => void
     /** detector 쪽 */
     onCommand: (listener: (command: DetectorCommand) => void) => () => void
-    sendSample: (sample: PostureSample) => void
+    onCalibrateRequest: (listener: () => void) => () => void
+    sendUpdate: (update: DetectionUpdate) => void
+    sendCalibration: (phase: CalibrationPhase) => void
     sendStatus: (status: DetectorStatus) => void
   }
 }

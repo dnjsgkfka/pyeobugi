@@ -1,11 +1,22 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { Baseline } from '@shared/calibration'
-import type { DetectorCommand, DetectorStatus, PostureSample } from '@shared/detector'
+import type {
+  CalibrationPhase,
+  DetectionUpdate,
+  DetectorCommand,
+  DetectorStatus,
+  PostureSample
+} from '@shared/detector'
 import type { PomodoroState } from '@shared/pomodoro'
-import type { PostureResult } from '@shared/posture-engine'
 import type { ReportView } from '@shared/report'
 import type { Settings } from '@shared/schemas/settings'
-import { IPC, type DetectionState, type PreloadApi, type WindowName } from '@shared/ipc'
+import {
+  IPC,
+  type DetectionState,
+  type PostureView,
+  type PreloadApi,
+  type WindowName
+} from '@shared/ipc'
 
 function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
   const handler = (_event: IpcRendererEvent, value: T): void => listener(value)
@@ -60,11 +71,16 @@ const api: PreloadApi = {
     onDetection: (listener: (state: DetectionState) => void) =>
       subscribe<DetectionState>(IPC.DETECTION_STATE, listener),
     reset: () => ipcRenderer.send(IPC.DETECTION_RESET),
-    onState: (listener: (result: PostureResult) => void) =>
-      subscribe<PostureResult>(IPC.POSTURE_STATE, listener),
+    onState: (listener: (view: PostureView) => void) =>
+      subscribe<PostureView>(IPC.POSTURE_STATE, listener),
+    calibrate: () => ipcRenderer.send(IPC.CALIBRATION_START),
+    onCalibration: (listener: (phase: CalibrationPhase) => void) =>
+      subscribe<CalibrationPhase>(IPC.CALIBRATION_STATE, listener),
     onCommand: (listener: (command: DetectorCommand) => void) =>
       subscribe<DetectorCommand>(IPC.DETECTOR_COMMAND, listener),
-    sendSample: (sample: PostureSample) => ipcRenderer.send(IPC.POSTURE_SAMPLE, sample),
+    onCalibrateRequest: (listener: () => void) => subscribe(IPC.CALIBRATION_START, listener),
+    sendUpdate: (update: DetectionUpdate) => ipcRenderer.send(IPC.POSTURE_UPDATE, update),
+    sendCalibration: (phase: CalibrationPhase) => ipcRenderer.send(IPC.CALIBRATION_STATE, phase),
     sendStatus: (status: DetectorStatus) => ipcRenderer.send(IPC.DETECTOR_STATUS, status)
   }
 }
