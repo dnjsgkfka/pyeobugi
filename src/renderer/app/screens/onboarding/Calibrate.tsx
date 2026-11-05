@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { CALIBRATION } from '@shared/ai/calibration'
 import type { CalibrationPhase } from '@shared/detector'
 import type { PostureView } from '@shared/ipc'
 import { Button } from '@renderer/ui/Button'
 import { Dialog } from '@renderer/ui/Dialog'
+import { CameraPreview } from './CameraPreview'
 import { OnboardingHeader } from './OnboardingHeader'
 import { OnboardingPanel } from './OnboardingPanel'
-
-const SECONDS = CALIBRATION.durationMs / 1000
 
 /** Figma 문구 (14:4442 얼굴 찾기 / 14:4667 기준 잡기) */
 const COPY = {
@@ -18,12 +16,7 @@ const COPY = {
   },
   ready: {
     title: '바른 자세로 앉은 뒤 기준을 잡아주세요.',
-    // TODO(디자인): Figma 는 "버튼을 누르는 순간" 이지만 실제로는 5초를 재서 중앙값을 쓴다
-    body: `지금 자세가 앞으로 교정할 기준이 돼요. 버튼을 누르면 ${SECONDS}초 동안 자세를 재요.`
-  },
-  measuring: {
-    title: `${SECONDS}초 동안 그대로 있어 주세요.`,
-    body: '정면을 보고 움직임을 줄이면 더 정확해요.'
+    body: '지금 자세가 앞으로 교정할 기준이 돼요. 버튼을 누르는 순간의 위치가 저장돼요.'
   }
 } as const
 
@@ -33,7 +26,7 @@ export default function Calibrate(): React.JSX.Element {
   const saved = useRef(false)
 
   const [face, setFace] = useState(false)
-  const [phase, setPhase] = useState<CalibrationPhase>({ phase: 'idle' })
+  const [failed, setFailed] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
   useEffect(() => {
@@ -42,12 +35,16 @@ export default function Calibrate(): React.JSX.Element {
       // 얼굴이 보이는지만 본다 (판정은 기준이 있어야 돌아간다)
       setFace(view.feedback.phase !== 'UNAVAILABLE')
     })
-    const offCalibration = window.api.posture.onCalibration((next) => {
-      setPhase(next)
-      if (next.phase !== 'complete' || saved.current) return
+    const offCalibration = window.api.posture.onCalibration((phase: CalibrationPhase) => {
+      if (phase.phase === 'failed') {
+        setFailed(phase.message)
+        return
+      }
+      if (phase.phase !== 'complete' || saved.current) return
       saved.current = true
+      setFailed(null)
       void window.api.settings
-        .saveCalibration(next.baseline, isRecalibration)
+        .saveCalibration(phase.baseline, isRecalibration)
         .then(() => setDone(true))
     })
     return () => {
@@ -56,49 +53,24 @@ export default function Calibrate(): React.JSX.Element {
     }
   }, [isRecalibration])
 
-  const start = useCallback(() => {
+  const capture = useCallback(() => {
     saved.current = false
     window.api.posture.calibrate()
   }, [])
 
-  const collecting = phase.phase === 'collecting'
-  const failed = phase.phase === 'failed'
-  // 남은 초로 진행률을 만든다 (판정은 detector 가 한다)
-  const progress = collecting ? 1 - phase.remainingSec / SECONDS : 0
-
-  const copy = failed
-    ? { title: '기준을 잡지 못했어요', body: phase.message }
-    : collecting
-      ? COPY.measuring
-      : face
-        ? COPY.ready
-        : COPY.searching
+  const copy = face ? COPY.ready : COPY.searching
 
   return (
-    <div className="relative h-full w-full bg-grey-100">
-      <OnboardingHeader current={face || collecting ? 3 : 2} />
+    <div className="relative h-full w-full">
+      <CameraPreview />
+      <OnboardingHeader current={face ? 3 : 2} />
 
-      <OnboardingPanel title={copy.title} body={copy.body}>
-        {collecting ? (
-          <div
-            className="h-2 w-full overflow-hidden rounded-pill bg-grey-300"
-            role="progressbar"
-            aria-valuenow={Math.round(progress * 100)}
-          >
-            <div
-              className="h-full rounded-pill bg-main3 transition-[width] duration-300"
-              style={{ width: `${progress * 100}%` }}
-            />
-          </div>
-        ) : failed ? (
-          <Button size="lg" className="w-full" onClick={start}>
-            다시 시도
-          </Button>
-        ) : face ? (
-          <Button size="lg" className="w-full" onClick={start}>
+      <OnboardingPanel title={copy.title} body={failed ?? copy.body}>
+        {face && (
+          <Button size="lg" className="w-full" onClick={capture}>
             기준 잡기
           </Button>
-        ) : null}
+        )}
       </OnboardingPanel>
 
       {done && (
