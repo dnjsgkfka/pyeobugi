@@ -239,3 +239,21 @@ describe('severityOf', () => {
     expect(severityOf(T.severeFactor, T)).toBe('SEVERE')
   })
 })
+
+describe('나쁜 자세 시작 시각', () => {
+  it('확정된 순간에 badSince 로 시작 시각을 돌려준다 (판정 시각이 아니다)', () => {
+    const { results } = feed(engine(), 5_000, SLOUCH)
+    const index = results.findIndex((r) => r.enteredBad)
+    expect(index).toBeGreaterThan(0)
+    const entered = results[index]
+    expect(entered.badSince).not.toBeNull()
+    // 확정 시각 - 시작 시각 ≈ holdMs (샘플 한 칸 오차 허용)
+    expect(index * STEP - (entered.badSince as number)).toBeGreaterThanOrEqual(T.holdMs - STEP)
+  })
+
+  it('확정 이후 샘플에는 badSince 가 없다', () => {
+    const { results } = feed(engine(), 8_000, SLOUCH)
+    const after = results.slice(results.findIndex((r) => r.enteredBad) + 1)
+    expect(after.every((r) => r.badSince === null)).toBe(true)
+  })
+})

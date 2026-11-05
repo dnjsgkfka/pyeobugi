@@ -83,7 +83,12 @@ export function registerPostureIpc(): void {
     setTrayState(away ? 'away' : result.state === 'bad' ? 'bad' : 'good')
     const queue = getQueue()
     if (result.enteredBad) {
-      queue.enqueue(buildEvent('POSTURE_BAD', { severity: result.enteredBad }))
+      // occurredAt 은 판정 시각이 아니라 나쁜 자세가 시작된 시각이다 (최대 holdMs 만큼 소급).
+      // 샘플 시계와 메인 시계가 다를 수 있어 '얼마나 전인지'로 계산한다.
+      const backMs = result.badSince === null ? 0 : Math.max(0, parsed.data.t - result.badSince)
+      queue.enqueue(
+        buildEvent('POSTURE_BAD', { severity: result.enteredBad }, new Date(Date.now() - backMs))
+      )
     }
 
     // 사용 시간 집계. occurredAt 은 구간이 끝난 시각이어야 한다.
