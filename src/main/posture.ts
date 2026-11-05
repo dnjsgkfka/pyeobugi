@@ -100,6 +100,18 @@ export function registerPostureIpc(): void {
     getWindow('detector')?.webContents.send(IPC.CALIBRATION_START)
   })
 
+  // app → detector: 온보딩 프리뷰 켜기/끄기
+  ipcMain.on(IPC.PREVIEW_SET, (_event: IpcMainEvent, on: unknown) => {
+    getWindow('detector')?.webContents.send(IPC.PREVIEW_SET, on === true)
+  })
+
+  // detector → app: 축소한 카메라 프레임. 저장하지도, 로그에 남기지도 않는다
+  ipcMain.on(IPC.PREVIEW_FRAME, (event: IpcMainEvent, frame: unknown) => {
+    if (event.sender !== getWindow('detector')?.webContents) return
+    if (typeof frame !== 'string') return
+    getWindow('app')?.webContents.send(IPC.PREVIEW_FRAME, frame)
+  })
+
   // detector → app: 기준 잡기 진행 상태
   ipcMain.on(IPC.CALIBRATION_STATE, (event: IpcMainEvent, phase: unknown) => {
     if (event.sender !== getWindow('detector')?.webContents) return
