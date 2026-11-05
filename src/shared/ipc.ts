@@ -50,6 +50,10 @@ export const IPC = {
   CALIBRATION_START: 'calibration:start',
   /** detector → main → app: 기준 잡기 진행 상태 */
   CALIBRATION_STATE: 'calibration:state',
+  /** app → main → detector: 온보딩 프리뷰 켜기/끄기 */
+  PREVIEW_SET: 'preview:set',
+  /** detector → main → app: 축소한 카메라 프레임 (기기 안에서만 돈다) */
+  PREVIEW_FRAME: 'preview:frame',
   CAMERA_OPEN_SETTINGS: 'camera:open-settings',
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',
@@ -61,6 +65,8 @@ export const IPC = {
   DETECTION_STATE: 'detection:state',
   DETECTION_GET: 'detection:get',
   DETECTION_RESET: 'detection:reset',
+  /** 카메라만 끄기 (감지 중이면 무시) */
+  DETECTOR_CLOSE_IF_IDLE: 'detector:close-if-idle',
   /** 뽀모도로 */
   POMODORO_STATE: 'pomodoro:state',
   POMODORO_GET: 'pomodoro:get',
@@ -116,9 +122,16 @@ export interface PreloadApi {
     onState: (listener: (state: PomodoroState) => void) => () => void
   }
   posture: {
-    /** app → detector: 감지 시작/정지 */
+    /** app → detector: 감지 시작/정지 (사용자가 버튼을 눌렀을 때만) */
     start: () => void
     stop: () => void
+    /**
+     * 카메라만 켠다 (온보딩·기준 다시 잡기).
+     * 감지 세션은 시작하지 않아서 경과 시간·사용 구간·이벤트가 쌓이지 않는다.
+     */
+    openCamera: () => void
+    /** 카메라만 켜 둔 상태면 끈다. 감지 중이면 그대로 둔다 */
+    closeCameraIfIdle: () => void
     getStatus: () => Promise<DetectorStatus>
     /** app 쪽 구독 (해제 함수를 돌려준다) */
     onSample: (listener: (sample: PostureSample) => void) => () => void
@@ -130,12 +143,17 @@ export interface PreloadApi {
     reset: () => void
     /** 자세 판정 상태 구독 */
     onState: (listener: (view: PostureView) => void) => () => void
-    /** 기준 잡기 시작 + 진행 상태 구독 */
+    /** 지금 자세를 기준으로 저장 + 결과 구독 */
     calibrate: () => void
     onCalibration: (listener: (phase: CalibrationPhase) => void) => () => void
+    /** 온보딩 카메라 프리뷰 (화면을 벗어나면 반드시 끈다) */
+    setPreview: (on: boolean) => void
+    onPreviewFrame: (listener: (frame: string) => void) => () => void
     /** detector 쪽 */
     onCommand: (listener: (command: DetectorCommand) => void) => () => void
     onCalibrateRequest: (listener: () => void) => () => void
+    onPreviewRequest: (listener: (on: boolean) => void) => () => void
+    sendPreviewFrame: (frame: string) => void
     sendUpdate: (update: DetectionUpdate) => void
     sendCalibration: (phase: CalibrationPhase) => void
     sendStatus: (status: DetectorStatus) => void

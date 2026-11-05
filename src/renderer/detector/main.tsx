@@ -24,5 +24,7 @@ window.api.posture.onCommand((command) => {
   else detector.stop()
 })
 window.api.posture.onCalibrateRequest(() => detector.calibrate())
+window.api.posture.onPreviewRequest((on) => detector.setPreview(on))
+detector.onPreview((frame) => window.api.posture.sendPreviewFrame(frame))
 
 createRoot(document.getElementById('root')!).render(<div>detector</div>)

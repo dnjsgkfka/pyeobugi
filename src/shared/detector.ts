@@ -33,10 +33,15 @@ export function isDetectorStatus(value: unknown): value is DetectorStatus {
   return typeof value === 'string' && (DETECTOR_STATUSES as readonly string[]).includes(value)
 }
 
-export type DetectorCommand = 'start' | 'stop'
+/**
+ * - start: 사용자가 '자세 감지 시작' 을 눌렀다 → 감지 세션 (경과 시간·사용 구간·이벤트)
+ * - camera: 온보딩·기준 잡기용으로 카메라만 켠다 → 세션은 시작하지 않는다
+ * - stop: 끈다
+ */
+export type DetectorCommand = 'start' | 'camera' | 'stop'
 
 export function isDetectorCommand(value: unknown): value is DetectorCommand {
-  return value === 'start' || value === 'stop'
+  return value === 'start' || value === 'camera' || value === 'stop'
 }
 
 /** detector 창이 한 번 추론하고 내보내는 묶음 */
@@ -60,8 +65,14 @@ export interface PostureDetector {
   stop: () => void
   /** 설정에 저장된 기준 자세. 없으면 판정하지 않고 샘플만 낸다 */
   setBaseline: (baseline: Baseline | null) => void
-  /** 기준 잡기 시작 (5초 수집) */
+  /**
+   * 지금 자세를 기준으로 저장한다 (버튼을 누른 순간).
+   * 한 프레임이 아니라 엔진이 1초 EMA 로 평활한 값이라 떨림에 덜 흔들린다.
+   */
   calibrate: () => void
+  /** 온보딩에서만 켠다. 축소한 프레임을 내보낸다 (기기 밖으로 나가지 않는다) */
+  setPreview: (on: boolean) => void
+  onPreview: (listener: (frame: string) => void) => () => void
   onUpdate: (listener: (update: DetectionUpdate) => void) => () => void
   onCalibration: (listener: (phase: CalibrationPhase) => void) => () => void
   onStatus: (listener: (status: DetectorStatus) => void) => () => void

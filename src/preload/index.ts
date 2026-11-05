@@ -62,6 +62,8 @@ const api: PreloadApi = {
   posture: {
     start: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'start'),
     stop: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'stop'),
+    openCamera: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'camera'),
+    closeCameraIfIdle: () => ipcRenderer.send(IPC.DETECTOR_CLOSE_IF_IDLE),
     getStatus: () => ipcRenderer.invoke(IPC.DETECTOR_GET_STATUS),
     onSample: (listener: (sample: PostureSample) => void) =>
       subscribe<PostureSample>(IPC.POSTURE_SAMPLE, listener),
@@ -76,9 +78,15 @@ const api: PreloadApi = {
     calibrate: () => ipcRenderer.send(IPC.CALIBRATION_START),
     onCalibration: (listener: (phase: CalibrationPhase) => void) =>
       subscribe<CalibrationPhase>(IPC.CALIBRATION_STATE, listener),
+    setPreview: (on: boolean) => ipcRenderer.send(IPC.PREVIEW_SET, on),
+    onPreviewFrame: (listener: (frame: string) => void) =>
+      subscribe<string>(IPC.PREVIEW_FRAME, listener),
     onCommand: (listener: (command: DetectorCommand) => void) =>
       subscribe<DetectorCommand>(IPC.DETECTOR_COMMAND, listener),
     onCalibrateRequest: (listener: () => void) => subscribe(IPC.CALIBRATION_START, listener),
+    onPreviewRequest: (listener: (on: boolean) => void) =>
+      subscribe<boolean>(IPC.PREVIEW_SET, listener),
+    sendPreviewFrame: (frame: string) => ipcRenderer.send(IPC.PREVIEW_FRAME, frame),
     sendUpdate: (update: DetectionUpdate) => ipcRenderer.send(IPC.POSTURE_UPDATE, update),
     sendCalibration: (phase: CalibrationPhase) => ipcRenderer.send(IPC.CALIBRATION_STATE, phase),
     sendStatus: (status: DetectorStatus) => ipcRenderer.send(IPC.DETECTOR_STATUS, status)

@@ -62,11 +62,12 @@ export default function Permission(): React.JSX.Element {
 
   function onConfirm(): void {
     if (status === 'denied') window.api.camera.openSettings()
-    else window.api.posture.start()
+    // 온보딩에서는 카메라만 켠다 (감지 세션은 '자세 감지 시작' 버튼으로만 시작한다)
+    else window.api.posture.openCamera()
   }
 
   function onCancel(): void {
-    if (failed) window.api.posture.start()
+    if (failed) window.api.posture.openCamera()
     else navigate('/onboarding')
   }
 

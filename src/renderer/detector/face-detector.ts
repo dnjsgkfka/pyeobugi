@@ -1,6 +1,8 @@
 /**
  * AI 파트 레포(kayo2e/pyeobugi-AI)의 `src/renderer/src/detection/face-detector.ts` 를
- * 가져온 파일 (main, 2026-11-05 기준). 모델·wasm 경로만 우리 public 구조에 맞췄다.
+ * 가져온 파일 (main, 2026-11-05 기준).
+ * 우리 쪽에서 고친 것: 모델·wasm 경로, 그리고 추론 입력 가로폭을 320 으로 고정
+ * (온보딩 프리뷰 때 카메라 해상도를 올려도 추론 비용이 늘지 않게).
  */
 import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision'
 import type { Detection } from '@mediapipe/tasks-vision'
@@ -30,6 +32,9 @@ export async function createFaceDetector(): Promise<FaceDetector> {
     minDetectionConfidence: 0.5
   })
 }
+
+/** 추론에 넣는 가로폭. 카메라가 더 크게 들어와도 여기서 줄인다 */
+const INFERENCE_WIDTH = 320
 
 let frame: CanvasRenderingContext2D | null = null
 
@@ -66,8 +71,11 @@ function toSample(face: Detection, width: number, height: number): FaceSample | 
 }
 
 export function detectFace(detector: FaceDetector, video: HTMLVideoElement): FaceDetection | null {
-  const { videoWidth: width, videoHeight: height } = video
-  if (width === 0 || height === 0) return null
+  if (video.videoWidth === 0 || video.videoHeight === 0) return null
+  // 비율은 그대로 두고 가로폭만 맞춘다. pitch·size 는 모두 비율이라 값이 달라지지 않는다
+  const scale = Math.min(1, INFERENCE_WIDTH / video.videoWidth)
+  const width = Math.round(video.videoWidth * scale)
+  const height = Math.round(video.videoHeight * scale)
 
   const found = largestFace(
     detector.detectForVideo(captureFrame(video, width, height), performance.now()).detections

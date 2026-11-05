@@ -40,6 +40,11 @@ function endSession(reset: boolean): void {
   broadcastDetection()
 }
 
+/** 사용자가 '자세 감지 시작' 을 눌러 세션이 돌아가는 중인가 */
+export function isSessionRunning(): boolean {
+  return runningSince !== null
+}
+
 function fromDetector(event: IpcMainEvent): boolean {
   return event.sender === getWindow('detector')?.webContents
 }
@@ -49,13 +54,26 @@ export function registerDetectorIpc(): void {
   ipcMain.on(IPC.DETECTOR_COMMAND, (_event, command: unknown) => {
     if (!isDetectorCommand(command)) return
     if (command === 'start') beginSession()
-    else {
+    else if (command === 'camera') {
+      // 카메라만 켠다 (기준 잡기). 세션은 시작하지 않는다
+    } else {
       // 감지를 멈추면 쌓이던 구간을 마감한다
       flushUsage()
       setTrayState('idle')
       endSession(false)
     }
-    getWindow('detector')?.webContents.send(IPC.DETECTOR_COMMAND, command)
+    // detector 는 카메라만 켜는 것과 감지를 구분하지 않는다
+    getWindow('detector')?.webContents.send(
+      IPC.DETECTOR_COMMAND,
+      command === 'camera' ? 'start' : command
+    )
+  })
+
+  // 온보딩 화면을 벗어날 때. 감지 중이면 끄지 않는다
+  ipcMain.on(IPC.DETECTOR_CLOSE_IF_IDLE, () => {
+    if (runningSince !== null) return
+    setTrayState('idle')
+    getWindow('detector')?.webContents.send(IPC.DETECTOR_COMMAND, 'stop')
   })
 
   ipcMain.on(IPC.DETECTOR_STATUS, (event, next: unknown) => {

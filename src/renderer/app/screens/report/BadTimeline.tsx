@@ -19,7 +19,7 @@ export function BadTimeline({
   return (
     <section className="flex flex-col gap-6 rounded-lg bg-white p-4 shadow-card">
       <div className="flex items-center justify-between">
-        <span className="text-label-b text-grey-900">거북목 감지 시점</span>
+        <span className="text-body-b text-grey-900">거북목 감지 시점</span>
         <span className="text-label text-grey-700">{summary}</span>
       </div>
 

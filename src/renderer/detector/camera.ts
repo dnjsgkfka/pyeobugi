@@ -10,6 +10,14 @@ const VIRTUAL = /virtual|obs|snap|manycam|droidcam|mirametrix|xsplit|nvidia broa
 const SIZE = { width: { ideal: 320 }, height: { ideal: 240 } }
 const FRAME_RATE = { ideal: 5, max: 10 }
 
+/**
+ * 온보딩처럼 사람이 영상을 보는 동안 쓰는 해상도.
+ * 켜 둔 스트림의 해상도 변경(`applyConstraints`)을 거부하는 카메라가 있어서,
+ * 프리뷰는 이 조건으로 카메라를 다시 연다. `ideal` 이라 못 맞추면 카메라가 알아서 가장 가까운 값을 준다.
+ */
+const PREVIEW_SIZE = { width: { ideal: 1920 }, height: { ideal: 1080 } }
+const PREVIEW_FRAME_RATE = { ideal: 15, max: 30 }
+
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -28,20 +36,20 @@ async function listCameras(): Promise<MediaDeviceInfo[]> {
   }
 }
 
-function constraints(deviceId?: string): MediaStreamConstraints {
+function constraints(deviceId?: string, preview = false): MediaStreamConstraints {
   return {
     video: {
       ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-      ...SIZE,
-      frameRate: FRAME_RATE
+      ...(preview ? PREVIEW_SIZE : SIZE),
+      frameRate: preview ? PREVIEW_FRAME_RATE : FRAME_RATE
     },
     audio: false
   }
 }
 
-async function tryOpen(device?: MediaDeviceInfo): Promise<MediaStream> {
+async function tryOpen(device?: MediaDeviceInfo, preview = false): Promise<MediaStream> {
   try {
-    return await navigator.mediaDevices.getUserMedia(constraints(device?.deviceId))
+    return await navigator.mediaDevices.getUserMedia(constraints(device?.deviceId, preview))
   } catch (error) {
     // 해상도·프레임을 못 맞추는 카메라가 있다 → 조건 없이 한 번 더
     if ((error as Error)?.name !== 'OverconstrainedError') throw error
@@ -57,7 +65,7 @@ async function tryOpen(device?: MediaDeviceInfo): Promise<MediaStream> {
  * 가상 카메라는 열리지 않고 AbortError(Timeout starting video source) 로 끝나는 경우가
  * 많아, 실패하면 다음 장치로 넘어간다. 장치 목록을 못 얻으면 기본 장치로만 시도한다.
  */
-export async function openCamera(): Promise<MediaStream> {
+export async function openCamera(preview = false): Promise<MediaStream> {
   const cameras = await listCameras()
   const candidates: (MediaDeviceInfo | undefined)[] = cameras.length > 0 ? cameras : [undefined]
   let lastError: unknown = new DOMException('no camera', 'NotFoundError')
@@ -65,7 +73,7 @@ export async function openCamera(): Promise<MediaStream> {
   for (const device of candidates) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        return await tryOpen(device)
+        return await tryOpen(device, preview)
       } catch (error) {
         lastError = error
         const name = (error as Error)?.name
@@ -77,6 +85,16 @@ export async function openCamera(): Promise<MediaStream> {
     }
   }
   throw lastError
+}
+
+function sizeOf(track: MediaStreamTrack): string {
+  const { width, height, frameRate } = track.getSettings()
+  return `${width ?? '?'}×${height ?? '?'}@${Math.round(frameRate ?? 0)}`
+}
+
+export function sizeOfStream(stream: MediaStream | null): string {
+  const track = stream?.getVideoTracks()[0]
+  return track ? sizeOf(track) : '-'
 }
 
 export function closeCamera(stream: MediaStream | null): void {

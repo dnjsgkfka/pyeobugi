@@ -2,6 +2,7 @@ import { ipcMain, type IpcMainEvent } from 'electron'
 import type { DetectionUpdate } from '@shared/detector'
 import { IPC, type PostureView } from '@shared/ipc'
 import { UsageTracker } from '@shared/usage'
+import { isSessionRunning } from './detector'
 import { buildEvent } from './events'
 import { setTrayState } from './tray'
 import { getQueue } from './queue'
@@ -76,6 +77,14 @@ export function registerPostureIpc(): void {
     // 판정과 무관하게 원시 샘플은 app 창으로 넘긴다 (개발 화면에서 쓴다)
     getWindow('app')?.webContents.send(IPC.POSTURE_SAMPLE, sample)
 
+    const view: PostureView = { feedback, distance }
+    // 기준 잡기처럼 카메라만 켜 둔 상태에서는 기록하지 않는다.
+    // app 창에는 보낸다 (얼굴이 보이는지 알아야 버튼을 띄울 수 있다).
+    if (!isSessionRunning()) {
+      getWindow('app')?.webContents.send(IPC.POSTURE_STATE, view)
+      return
+    }
+
     const now = Date.now()
     const away = isAway(now, sample.face)
     const bad = feedback.phase === 'BAD'
@@ -90,7 +99,6 @@ export function registerPostureIpc(): void {
       getQueue().enqueue(buildEvent('USAGE_SEGMENT', segment, new Date(segment.endedAt)))
     }
 
-    const view: PostureView = { feedback, distance }
     getWindow('app')?.webContents.send(IPC.POSTURE_STATE, view)
     getWindow('overlay')?.webContents.send(IPC.POSTURE_STATE, view)
   })
@@ -98,6 +106,18 @@ export function registerPostureIpc(): void {
   // app → detector: 기준 잡기 시작
   ipcMain.on(IPC.CALIBRATION_START, () => {
     getWindow('detector')?.webContents.send(IPC.CALIBRATION_START)
+  })
+
+  // app → detector: 온보딩 프리뷰 켜기/끄기
+  ipcMain.on(IPC.PREVIEW_SET, (_event: IpcMainEvent, on: unknown) => {
+    getWindow('detector')?.webContents.send(IPC.PREVIEW_SET, on === true)
+  })
+
+  // detector → app: 축소한 카메라 프레임. 저장하지도, 로그에 남기지도 않는다
+  ipcMain.on(IPC.PREVIEW_FRAME, (event: IpcMainEvent, frame: unknown) => {
+    if (event.sender !== getWindow('detector')?.webContents) return
+    if (typeof frame !== 'string') return
+    getWindow('app')?.webContents.send(IPC.PREVIEW_FRAME, frame)
   })
 
   // detector → app: 기준 잡기 진행 상태
