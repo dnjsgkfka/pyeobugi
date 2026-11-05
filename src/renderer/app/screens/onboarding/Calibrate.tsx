@@ -30,7 +30,9 @@ export default function Calibrate(): React.JSX.Element {
   const [done, setDone] = useState(false)
 
   useEffect(() => {
-    window.api.posture.start()
+    // 기준을 잡는 동안에는 카메라만 켠다.
+    // '자세 감지 시작' 을 누르지 않았으면 경과 시간·사용 구간·이벤트가 쌓이면 안 된다.
+    window.api.posture.openCamera()
     const offState = window.api.posture.onState((view: PostureView) => {
       // 얼굴이 보이는지만 본다 (판정은 기준이 있어야 돌아간다)
       setFace(view.feedback.phase !== 'UNAVAILABLE')
@@ -50,6 +52,8 @@ export default function Calibrate(): React.JSX.Element {
     return () => {
       offState()
       offCalibration()
+      // 감지 중이었다면 그대로 두고, 기준 잡기 때문에 켠 것이면 끈다
+      window.api.posture.closeCameraIfIdle()
     }
   }, [isRecalibration])
 
