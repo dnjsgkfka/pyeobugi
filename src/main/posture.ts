@@ -2,6 +2,7 @@ import { ipcMain, type IpcMainEvent } from 'electron'
 import type { DetectionUpdate } from '@shared/detector'
 import { IPC, type PostureView } from '@shared/ipc'
 import { UsageTracker } from '@shared/usage'
+import { isSessionRunning } from './detector'
 import { buildEvent } from './events'
 import { setTrayState } from './tray'
 import { getQueue } from './queue'
@@ -76,6 +77,14 @@ export function registerPostureIpc(): void {
     // 판정과 무관하게 원시 샘플은 app 창으로 넘긴다 (개발 화면에서 쓴다)
     getWindow('app')?.webContents.send(IPC.POSTURE_SAMPLE, sample)
 
+    const view: PostureView = { feedback, distance }
+    // 기준 잡기처럼 카메라만 켜 둔 상태에서는 기록하지 않는다.
+    // app 창에는 보낸다 (얼굴이 보이는지 알아야 버튼을 띄울 수 있다).
+    if (!isSessionRunning()) {
+      getWindow('app')?.webContents.send(IPC.POSTURE_STATE, view)
+      return
+    }
+
     const now = Date.now()
     const away = isAway(now, sample.face)
     const bad = feedback.phase === 'BAD'
@@ -90,7 +99,6 @@ export function registerPostureIpc(): void {
       getQueue().enqueue(buildEvent('USAGE_SEGMENT', segment, new Date(segment.endedAt)))
     }
 
-    const view: PostureView = { feedback, distance }
     getWindow('app')?.webContents.send(IPC.POSTURE_STATE, view)
     getWindow('overlay')?.webContents.send(IPC.POSTURE_STATE, view)
   })

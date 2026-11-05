@@ -33,10 +33,15 @@ export function isDetectorStatus(value: unknown): value is DetectorStatus {
   return typeof value === 'string' && (DETECTOR_STATUSES as readonly string[]).includes(value)
 }
 
-export type DetectorCommand = 'start' | 'stop'
+/**
+ * - start: 사용자가 '자세 감지 시작' 을 눌렀다 → 감지 세션 (경과 시간·사용 구간·이벤트)
+ * - camera: 온보딩·기준 잡기용으로 카메라만 켠다 → 세션은 시작하지 않는다
+ * - stop: 끈다
+ */
+export type DetectorCommand = 'start' | 'camera' | 'stop'
 
 export function isDetectorCommand(value: unknown): value is DetectorCommand {
-  return value === 'start' || value === 'stop'
+  return value === 'start' || value === 'camera' || value === 'stop'
 }
 
 /** detector 창이 한 번 추론하고 내보내는 묶음 */

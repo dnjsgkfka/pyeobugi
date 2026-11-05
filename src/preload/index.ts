@@ -62,6 +62,8 @@ const api: PreloadApi = {
   posture: {
     start: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'start'),
     stop: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'stop'),
+    openCamera: () => ipcRenderer.send(IPC.DETECTOR_COMMAND, 'camera'),
+    closeCameraIfIdle: () => ipcRenderer.send(IPC.DETECTOR_CLOSE_IF_IDLE),
     getStatus: () => ipcRenderer.invoke(IPC.DETECTOR_GET_STATUS),
     onSample: (listener: (sample: PostureSample) => void) =>
       subscribe<PostureSample>(IPC.POSTURE_SAMPLE, listener),

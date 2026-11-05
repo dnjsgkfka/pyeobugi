@@ -65,6 +65,8 @@ export const IPC = {
   DETECTION_STATE: 'detection:state',
   DETECTION_GET: 'detection:get',
   DETECTION_RESET: 'detection:reset',
+  /** 카메라만 끄기 (감지 중이면 무시) */
+  DETECTOR_CLOSE_IF_IDLE: 'detector:close-if-idle',
   /** 뽀모도로 */
   POMODORO_STATE: 'pomodoro:state',
   POMODORO_GET: 'pomodoro:get',
@@ -120,9 +122,16 @@ export interface PreloadApi {
     onState: (listener: (state: PomodoroState) => void) => () => void
   }
   posture: {
-    /** app → detector: 감지 시작/정지 */
+    /** app → detector: 감지 시작/정지 (사용자가 버튼을 눌렀을 때만) */
     start: () => void
     stop: () => void
+    /**
+     * 카메라만 켠다 (온보딩·기준 다시 잡기).
+     * 감지 세션은 시작하지 않아서 경과 시간·사용 구간·이벤트가 쌓이지 않는다.
+     */
+    openCamera: () => void
+    /** 카메라만 켜 둔 상태면 끈다. 감지 중이면 그대로 둔다 */
+    closeCameraIfIdle: () => void
     getStatus: () => Promise<DetectorStatus>
     /** app 쪽 구독 (해제 함수를 돌려준다) */
     onSample: (listener: (sample: PostureSample) => void) => () => void
