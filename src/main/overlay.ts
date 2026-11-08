@@ -14,11 +14,16 @@ function fromOverlay(event: IpcMainEvent): boolean {
   return event.sender === getWindow('overlay')?.webContents
 }
 
-/** 설정의 오버레이 토글에 맞춰 거북이 창을 보이거나 숨긴다 */
+/**
+ * 거북이 창을 보이거나 숨긴다.
+ * 오버레이를 꺼도 공부 타이머가 켜져 있으면 창은 띄운다 — 거북이 없이
+ * 남은 시간만 오른쪽 아래에 보여 주기 위해서다.
+ */
 export function applyOverlayVisibility(): void {
   const win = getWindow('overlay')
   if (!win) return
-  if (getSettings().value.features.overlay) win.showInactive()
+  const { overlay, studyTimer } = getSettings().value.features
+  if (overlay || studyTimer) win.showInactive()
   else win.hide()
 }
 

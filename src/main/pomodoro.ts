@@ -67,9 +67,18 @@ export function registerPomodoroIpc(): void {
   })
 }
 
-/** 감지를 시작/정지할 때 같이 움직인다 (공부 타이머를 켠 경우에만). */
-export function syncWithDetection(detecting: boolean): void {
-  if (!getSettings().value.features.studyTimer) return
-  if (detecting) startPomodoro()
-  else pausePomodoro()
+/**
+ * 설정의 '공부 타이머' 토글을 따라간다.
+ * 켜면 바로 돌고, 끄면 멈춘다 (감지와는 묶지 않는다 — 공부 시간을 세는 타이머라서).
+ * 앱 시작과 설정 변경 때 부른다.
+ */
+export function applyStudyTimer(): void {
+  const on = getSettings().value.features.studyTimer
+  if (on === isPomodoroRunning()) return
+  if (on) startPomodoro()
+  else stopPomodoro()
+}
+
+export function isPomodoroRunning(): boolean {
+  return pomodoro.value.running
 }
