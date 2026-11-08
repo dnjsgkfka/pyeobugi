@@ -104,7 +104,8 @@ function createDetector(): BrowserWindow {
 
 /**
  * 화면을 덮는 투명 창. 클릭은 아래 창으로 통과한다.
- * 작업 표시줄을 뺀 영역(workArea)에 맞춰서, 거북이가 작업 표시줄에 가려지지 않는다.
+ * 작업 표시줄을 뺀 영역(workArea)에 맞춘다 — Windows 는 작업 표시줄을
+ * alwaysOnTop 창보다 위에 두는 경우가 있어, 그 위를 덮으면 거북이가 가려진다.
  */
 function createOverlay(): BrowserWindow {
   const { x, y, width, height } = screen.getPrimaryDisplay().workArea

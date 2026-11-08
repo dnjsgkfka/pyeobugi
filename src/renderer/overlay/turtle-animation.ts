@@ -58,10 +58,10 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
     H = root.clientHeight
     size = Math.max(80, Math.min(MAX_SIZE, W * 0.3, H * 0.3))
     // 화면 맨 아래에서 좌우로만 돌아다닌다 (작업 중인 창을 가리지 않게).
-    // pos[1] 은 발끝 선이고 그림은 그 아래로 size*0.2 만큼 더 내려와 있어서,
-    // 그만큼 올려 두면 발이 잘리지 않고 창 바닥(= 작업 표시줄 위)에 딱 선다.
+    // pos[1] 이 발끝 선(그림의 y≈400)이다. 창이 작업 표시줄 위에서 끝나므로
+    // 바닥에서 아주 조금만 띄워 작업 표시줄 윗변에 붙어 선 것처럼 보이게 한다.
     // top 과 bottom 을 같게 둬서 높이는 고정 — 원근(minS)도 쓰지 않는다.
-    const ground = Math.max(0, H - size * 0.2)
+    const ground = H - 8
     floor = { top: ground, bottom: ground, minS: 1 }
     turtle.style.setProperty('--size', size + 'px')
   }
