@@ -56,16 +56,23 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
   function layout() {
     W = root.clientWidth
     H = root.clientHeight
-    // 오버레이는 화면 전체라 더 넓게 돌아다닌다
-    floor = { top: H * 0.2, bottom: H * 0.92, minS: 0.62 }
     size = Math.max(80, Math.min(MAX_SIZE, W * 0.3, H * 0.3))
+    // 화면 맨 아래에서 좌우로만 돌아다닌다 (작업 중인 창을 가리지 않게).
+    // pos[1] 이 발끝 선(그림의 y≈400)이다. 창이 작업 표시줄 위에서 끝나므로
+    // 바닥에서 아주 조금만 띄워 작업 표시줄 윗변에 붙어 선 것처럼 보이게 한다.
+    // top 과 bottom 을 같게 둬서 높이는 고정 — 원근(minS)도 쓰지 않는다.
+    const ground = H - 8
+    floor = { top: ground, bottom: ground, minS: 1 }
     turtle.style.setProperty('--size', size + 'px')
   }
   layout() // ResizeObserver 는 비동기로 처음 울리므로 여기서 한 번 잡아 둔다
   const depth = (y) => (floor ? depthOf(y) : (layout(), depthOf(y)))
-  const depthOf = (y) =>
-    floor.minS +
-    (1 - floor.minS) * Math.min(1, Math.max(0, (y - floor.top) / (floor.bottom - floor.top)))
+  const depthOf = (y) => {
+    const span = floor.bottom - floor.top
+    // 높이를 고정하면 띠 폭이 0 이다 → 나누지 않고 그대로
+    if (span <= 0) return floor.minS
+    return floor.minS + (1 - floor.minS) * Math.min(1, Math.max(0, (y - floor.top) / span))
+  }
   function clampPos(x, y) {
     y = Math.min(floor.bottom, Math.max(floor.top, y))
     const half = size * depth(y) * 0.5

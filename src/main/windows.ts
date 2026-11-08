@@ -50,7 +50,9 @@ function createApp(): BrowserWindow {
     resizable: false,
     show: false,
     title: '펴부기',
-    ...(process.platform === 'linux' ? { icon } : {}),
+    // 개발 모드에서는 Electron 실행 파일 아이콘이 쓰이므로 창 아이콘을 직접 준다
+    // (패키징 빌드는 build/icon.ico 를 쓴다)
+    icon,
     webPreferences: webPreferences()
   })
   win.on('ready-to-show', () => win.show())
@@ -100,9 +102,13 @@ function createDetector(): BrowserWindow {
   return win
 }
 
-/** 화면 전체를 덮는 투명 창. 클릭은 아래 창으로 통과한다. */
+/**
+ * 화면을 덮는 투명 창. 클릭은 아래 창으로 통과한다.
+ * 작업 표시줄을 뺀 영역(workArea)에 맞춘다 — Windows 는 작업 표시줄을
+ * alwaysOnTop 창보다 위에 두는 경우가 있어, 그 위를 덮으면 거북이가 가려진다.
+ */
 function createOverlay(): BrowserWindow {
-  const { x, y, width, height } = screen.getPrimaryDisplay().bounds
+  const { x, y, width, height } = screen.getPrimaryDisplay().workArea
   const win = new BrowserWindow({
     x,
     y,
@@ -124,6 +130,19 @@ function createOverlay(): BrowserWindow {
   })
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setIgnoreMouseEvents(true, { forward: true })
+  // 해상도·배율·작업 표시줄이 바뀌면 다시 맞춘다
+  const fit = (): void => {
+    if (win.isDestroyed()) return
+    win.setBounds(screen.getPrimaryDisplay().workArea)
+  }
+  screen.on('display-metrics-changed', fit)
+  screen.on('display-added', fit)
+  screen.on('display-removed', fit)
+  win.on('closed', () => {
+    screen.removeListener('display-metrics-changed', fit)
+    screen.removeListener('display-added', fit)
+    screen.removeListener('display-removed', fit)
+  })
   win.on('ready-to-show', () => win.showInactive())
   hideOnClose(win)
   loadPage(win, 'overlay')
