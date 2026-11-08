@@ -13,6 +13,10 @@ if (!existsSync(ROOT)) {
   process.exit(0)
 }
 
+/**
+ * @param {string} reason
+ * @returns {never}
+ */
 function fail(reason) {
   const [major] = process.versions.node.split('.')
   console.error(`\n✗ Electron 설치가 끝나지 않았습니다 (${reason}).`)
