@@ -30,7 +30,7 @@ export interface TurtleOptions {
 }
 
 export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): TurtleHandle {
-  const MAX_SIZE = options.maxSize ?? 120
+  const MAX_SIZE = options.maxSize ?? 144
   const $id = (id) => root.querySelector('#' + id)
   const turtle = $id('turtle'),
     hop = $id('hop'),
@@ -56,9 +56,10 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
   function layout() {
     W = root.clientWidth
     H = root.clientHeight
-    // 오버레이는 화면 전체라 더 넓게 돌아다닌다
-    floor = { top: H * 0.2, bottom: H * 0.92, minS: 0.62 }
-    size = Math.max(80, Math.min(MAX_SIZE, W * 0.3, H * 0.3))
+    size = Math.max(96, Math.min(MAX_SIZE, W * 0.3, H * 0.3))
+    // 화면 아래 한 줄만 돌아다닌다 (작업 중인 창을 가리지 않게).
+    // 띠가 얇아서 원근(minS)은 두지 않는다 — 위아래 크기 차이가 어색해진다
+    floor = { top: Math.max(0, H - size * 0.35), bottom: Math.max(0, H - 8), minS: 1 }
     turtle.style.setProperty('--size', size + 'px')
   }
   layout() // ResizeObserver 는 비동기로 처음 울리므로 여기서 한 번 잡아 둔다

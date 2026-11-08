@@ -100,9 +100,12 @@ function createDetector(): BrowserWindow {
   return win
 }
 
-/** 화면 전체를 덮는 투명 창. 클릭은 아래 창으로 통과한다. */
+/**
+ * 화면을 덮는 투명 창. 클릭은 아래 창으로 통과한다.
+ * 작업 표시줄을 뺀 영역(workArea)에 맞춰서, 거북이가 작업 표시줄에 가려지지 않는다.
+ */
 function createOverlay(): BrowserWindow {
-  const { x, y, width, height } = screen.getPrimaryDisplay().bounds
+  const { x, y, width, height } = screen.getPrimaryDisplay().workArea
   const win = new BrowserWindow({
     x,
     y,
@@ -124,6 +127,19 @@ function createOverlay(): BrowserWindow {
   })
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setIgnoreMouseEvents(true, { forward: true })
+  // 해상도·배율·작업 표시줄이 바뀌면 다시 맞춘다
+  const fit = (): void => {
+    if (win.isDestroyed()) return
+    win.setBounds(screen.getPrimaryDisplay().workArea)
+  }
+  screen.on('display-metrics-changed', fit)
+  screen.on('display-added', fit)
+  screen.on('display-removed', fit)
+  win.on('closed', () => {
+    screen.removeListener('display-metrics-changed', fit)
+    screen.removeListener('display-added', fit)
+    screen.removeListener('display-removed', fit)
+  })
   win.on('ready-to-show', () => win.showInactive())
   hideOnClose(win)
   loadPage(win, 'overlay')
