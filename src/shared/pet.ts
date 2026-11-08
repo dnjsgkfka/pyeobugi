@@ -14,8 +14,6 @@ export interface PetState {
 
 /** 거북목일 때 이 시간마다 원본 그림 길이만큼 늘어난다 */
 export const NECK_GROW_MS = 900
-/** 자세를 바로잡으면 이 속도로 줄어든다 */
-export const NECK_SHRINK_MS = 450
 /** 너무 많이 감기지 않게 (화면 폭만큼 감기면 더 늘려도 티가 안 난다) */
 export const NECK_MAX = 24
 
@@ -31,18 +29,9 @@ export function moodFrom(posture: PostureFeedback | null): PetMood {
 }
 
 /**
- * 나쁜 자세가 이어지는 동안 목이 계속 늘어나고, 자세가 돌아오면 되돌아간다.
- * @param neck 지금 목 길이
- * @param mood 지금 상태
- * @param dtMs 지난 호출로부터 흐른 시간
- */
-export function nextNeck(neck: number, mood: PetMood, dtMs: number): number {
-  if (mood === 'bad') return Math.min(NECK_MAX, neck + dtMs / NECK_GROW_MS)
-  return Math.max(0, neck - dtMs / NECK_SHRINK_MS)
-}
-
-/**
- * 거북목이 시작된 시각으로 목 길이를 구한다.
+ * 거북목으로 확정된 시각부터 목 길이를 구한다.
+ * 엔진의 `badSince` 는 확정 3초 전(진입 대기 시작)으로 소급된 값이라 그대로 쓰면
+ * 확정되는 순간 세 칸쯤에서 시작해 목이 튀어나간다.
  * 추론은 1초에 한 번뿐이지만 이 값은 지금 시각으로 계산하므로 매 프레임 조금씩 늘어난다
  * (판정 결과가 올 때마다 맞추면 1초마다 한 칸씩 뛰어서 계단처럼 보인다).
  */

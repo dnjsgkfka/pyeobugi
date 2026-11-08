@@ -248,6 +248,9 @@
     transform: rotate(0.3deg);
   }
 }
-.turtle * {
-  animation: none !important;
+/* OS 의 "동작 줄이기" 를 켰을 때만 멈춘다 (프로토타입과 동일) */
+@media (prefers-reduced-motion: reduce) {
+  .turtle * {
+    animation: none !important;
+  }
 }

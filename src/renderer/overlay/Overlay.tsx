@@ -1,24 +1,36 @@
 import { useEffect, useRef, useState } from 'react'
-import { moodFrom, neckSince, nextNeck, type PetState } from '@shared/pet'
+import { BubblePicker, STRETCH_EVERY_MS, type Bubble } from '@shared/bubble'
 import type { PostureView } from '@shared/ipc'
+import { moodFrom, neckSince } from '@shared/pet'
+import { SpeechBubble } from '@renderer/ui/SpeechBubble'
 import './turtle.css'
 import { runTurtle, type TurtleHandle } from './turtle-animation'
 import { TURTLE_HTML } from './turtle-art'
 
-/** 자세 샘플은 초당 여러 번 온다. ref 에 담아 두고 주기적으로만 본다. */
+/** 판정 결과는 추론 주기마다 온다. ref 에 담아 두고 주기적으로만 본다. */
 const UPDATE_MS = 100
+/** 복구 보상은 방금 끝난 것만 축하한다 (앱을 다시 켠 뒤 뒤늦게 뜨지 않게) */
+const RECOVER_FRESH_MS = 5_000
 
 export default function Overlay(): React.JSX.Element {
   const stage = useRef<HTMLDivElement>(null)
   const turtle = useRef<TurtleHandle | null>(null)
   const posture = useRef<PostureView | null>(null)
-  /** 목 길이는 매 틱 조금씩 더하고 뺀다 (0 = 아직 재지 않음, 타이머를 걸 때 채운다) */
-  const neck = useRef(0)
-  const lastTick = useRef(0)
+  /** 거북목으로 확정된 시각 (우리 시계). 목 길이는 여기서부터 잰다 */
+  const badStartedAt = useRef<number | null>(null)
 
-  const bubble = useRef<HTMLDivElement>(null)
+  const picker = useRef(new BubblePicker())
+  /** 이미 본 종료 이벤트 id — 한 번만 축하한다 */
+  const seenExit = useRef<number | null>(null)
+  /** 스트레칭 안내를 마지막으로 띄운 시각 */
+  const stretchAt = useRef(0)
+  const stretchOn = useRef(false)
+  const overlayOn = useRef(true)
+  const detecting = useRef(false)
 
-  const [pet, setPet] = useState<PetState>({ mood: 'good', neck: 0 })
+  const bubbleBox = useRef<HTMLDivElement>(null)
+
+  const [bubble, setBubble] = useState<Bubble | null>(null)
 
   useEffect(() => {
     const root = stage.current
@@ -31,26 +43,90 @@ export default function Overlay(): React.JSX.Element {
     }
   }, [])
 
+  /* 설정·뽀모도로·감지 상태를 모아 둔다 (말풍선 조건) */
+  useEffect(() => {
+    void window.api.settings.get().then((settings) => {
+      overlayOn.current = settings.features.overlay
+      stretchOn.current = settings.features.stretch
+    })
+    const offSettings = window.api.settings.onChange((settings) => {
+      overlayOn.current = settings.features.overlay
+      stretchOn.current = settings.features.stretch
+      if (!settings.features.overlay) picker.current.reset()
+    })
+
+    let phase: string | null = null
+    const offPomodoro = window.api.pomodoro.onState((state) => {
+      // 휴식으로 막 바뀐 순간에만
+      if (state.phase === 'break' && phase === 'focus') {
+        picker.current.trigger('timer-break', Date.now())
+      }
+      phase = state.phase
+    })
+
+    const offDetection = window.api.posture.onDetection((state) => {
+      // 감지를 시작한 순간 인사하고, 스트레칭 시계를 그때부터 센다
+      if (state.running && !detecting.current) {
+        const now = Date.now()
+        picker.current.trigger('greeting', now)
+        stretchAt.current = now
+      }
+      if (!state.running && detecting.current) picker.current.reset()
+      detecting.current = state.running
+    })
+
+    return () => {
+      offSettings()
+      offPomodoro()
+      offDetection()
+    }
+  }, [])
+
   useEffect(() => {
     const offPosture = window.api.posture.onState((next) => {
       posture.current = next
+      const { lastExit, phase } = next.feedback
+      if (!lastExit) return
+      // 뷰가 새로 떴을 때 이미 있던 종료 이벤트는 소비된 것으로 본다
+      if (seenExit.current === null) {
+        seenExit.current = lastExit.id
+        return
+      }
+      if (lastExit.id === seenExit.current) return
+      seenExit.current = lastExit.id
+      const fresh = Date.now() - lastExit.detectedAt < RECOVER_FRESH_MS
+      if (lastExit.reason === 'RECOVERED' && phase === 'GOOD' && fresh) {
+        picker.current.trigger('encourage', Date.now())
+      }
     })
-    lastTick.current = Date.now()
+
     const timer = setInterval(() => {
       const now = Date.now()
-      const dt = now - lastTick.current
-      lastTick.current = now
       const feedback = posture.current?.feedback ?? null
       const mood = moodFrom(feedback)
-      // 거북목이면 '시작 시각부터 지금까지' 로 계산한다 — 판정 결과(1초 간격)에 맞추면 계단처럼 뛴다.
-      // 자세가 돌아오면 틱으로 부드럽게 줄인다
-      neck.current =
-        mood === 'bad' && feedback?.badSince != null
-          ? neckSince(feedback.badSince, now)
-          : nextNeck(neck.current, mood, dt)
-      const next: PetState = { mood, neck: neck.current }
-      turtle.current?.setNeck(next.neck)
-      setPet((prev) => (prev.mood === next.mood && prev.neck === next.neck ? prev : next))
+      if (mood === 'bad') badStartedAt.current ??= now
+      else badStartedAt.current = null
+      // 거북목이면 확정된 순간부터 지금까지로 계산한다 — 매 프레임 조금씩 늘어난다.
+      // 자세가 돌아오면 0 을 주고, 줄어드는 모습은 그림 쪽 애니메이션(최대 1.5초)에 맡긴다
+      turtle.current?.setNeck(
+        badStartedAt.current === null ? 0 : neckSince(badStartedAt.current, now)
+      )
+
+      // 스트레칭 안내: 감지 중이고 설정에서 켜 둔 경우만
+      if (detecting.current && stretchOn.current && now - stretchAt.current >= STRETCH_EVERY_MS) {
+        stretchAt.current = now
+        picker.current.trigger('stretch', now)
+      }
+
+      if (!overlayOn.current) {
+        setBubble(null)
+        return
+      }
+      const shown = picker.current.update(now, {
+        posture: mood === 'bad',
+        distance: posture.current?.distance.suggested === true
+      })
+      setBubble((prev) => (prev?.kind === shown?.kind ? prev : shown))
     }, UPDATE_MS)
 
     return () => {
@@ -59,12 +135,18 @@ export default function Overlay(): React.JSX.Element {
     }
   }, [])
 
+  /* 말풍선이 바뀔 때마다: 이벤트 적재 + 누를 수 있는 동안만 클릭 받기 */
+  useEffect(() => {
+    if (bubble) window.api.posture.bubbleShown(bubble.event)
+    window.api.posture.setClickable(bubble?.action === 'recalibrate')
+  }, [bubble])
+
   /* 말풍선은 목을 그리는 것과 같은 박자(매 프레임)로 옮긴다. React 로 다시 그리면 툭툭 끊긴다 */
   useEffect(() => {
     let frame = 0
     const follow = (): void => {
       const where = turtle.current?.getHead()
-      const el = bubble.current
+      const el = bubbleBox.current
       if (where && el) {
         el.style.transform = `translate(${where.x}px, ${where.y - 8}px) translate(-50%, -100%)`
       }
@@ -81,17 +163,20 @@ export default function Overlay(): React.JSX.Element {
 
       {/* 항상 거북이 머리 위. 머리를 그대로 따라가므로 화면 밖으로 나가면 같이 잘린다. */}
       {/* (발 아래는 뽀모도로 타이머 자리 — 버튼이 생기면 넣는다) */}
-      {pet.mood === 'bad' && (
+      {bubble && (
         <div
-          ref={bubble}
-          className="fixed top-0 left-0 flex w-[153px] flex-col items-center will-change-transform"
+          ref={bubbleBox}
+          className="fixed top-0 left-0 will-change-transform"
           /* 첫 프레임에 왼쪽 위에서 번쩍이지 않게. 바로 아래 rAF 가 머리 위로 옮긴다 */
           style={{ transform: 'translate(-9999px, -9999px)' }}
         >
-          <div className="text-label w-full rounded-md bg-main5 p-3 text-center text-main1 shadow-card">
-            목이 앞으로 나왔어요
-          </div>
-          <span className="-mt-1 h-4 w-3 bg-main5 [clip-path:polygon(0_0,100%_0,50%_100%)]" />
+          {bubble.action === 'recalibrate' ? (
+            <button type="button" onClick={() => window.api.posture.openRecalibrate()}>
+              <SpeechBubble>{bubble.message}</SpeechBubble>
+            </button>
+          ) : (
+            <SpeechBubble>{bubble.message}</SpeechBubble>
+          )}
         </div>
       )}
     </>
