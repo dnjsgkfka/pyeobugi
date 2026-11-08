@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 // Electron 설치가 끝났는지 확인한다.
 // Electron 의 install.js 는 zip 해제가 중간에 멈춰도 종료 코드 0 으로 끝나서,
 // 설치 로그만 보면 성공처럼 보인다 (Node 26 에서 확인된 문제, #41).
@@ -13,10 +14,6 @@ if (!existsSync(ROOT)) {
   process.exit(0)
 }
 
-/**
- * @param {string} reason
- * @returns {never}
- */
 function fail(reason) {
   const [major] = process.versions.node.split('.')
   console.error(`\n✗ Electron 설치가 끝나지 않았습니다 (${reason}).`)
