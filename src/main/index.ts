@@ -4,7 +4,7 @@ import { initApi } from './api'
 import { registerCameraPermissions, registerDetectorIpc } from './detector'
 import { registerIpc } from './ipc'
 import { initSettings, registerOnboardingIpc } from './onboarding'
-import { registerPomodoroIpc } from './pomodoro'
+import { applyStudyTimer, registerPomodoroIpc } from './pomodoro'
 import { applyOverlayVisibility, registerOverlayIpc } from './overlay'
 import { registerPostureIpc } from './posture'
 import { initReport, registerReportIpc } from './report'
@@ -51,6 +51,8 @@ if (!app.requestSingleInstanceLock()) {
     createWindows()
     // 설정에서 오버레이를 꺼 뒀으면 거북이 창을 띄우지 않는다
     applyOverlayVisibility()
+    // 공부 타이머를 켜 둔 채 종료했으면 다시 돌린다
+    applyStudyTimer()
     createTray()
 
     app.on('activate', () => {

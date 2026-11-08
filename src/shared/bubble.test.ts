@@ -69,3 +69,33 @@ describe('BubblePicker', () => {
     expect(picker.update(100, QUIET)).toBeNull()
   })
 })
+
+describe('뽀모도로가 도는 동안', () => {
+  const RUNNING = { posture: false, distance: false, pomodoro: true }
+
+  it('자세 말풍선은 그대로 뜬다', () => {
+    const picker = new BubblePicker()
+    expect(picker.update(0, { ...RUNNING, posture: true })?.kind).toBe('posture')
+  })
+
+  it('휴식 전환 말풍선은 그대로 뜬다', () => {
+    const picker = new BubblePicker()
+    picker.trigger('timer-break', 0)
+    expect(picker.update(0, RUNNING)?.kind).toBe('timer-break')
+  })
+
+  it('인사·스트레칭·보상·거리 안내는 뜨지 않는다', () => {
+    const picker = new BubblePicker()
+    picker.trigger('greeting', 0)
+    picker.trigger('stretch', 0)
+    picker.trigger('encourage', 0)
+    expect(picker.update(0, { ...RUNNING, distance: true })).toBeNull()
+  })
+
+  it('뽀모도로가 멈추면 억제했던 것이 다시 뜬다', () => {
+    const picker = new BubblePicker()
+    picker.trigger('greeting', 0)
+    expect(picker.update(0, RUNNING)).toBeNull()
+    expect(picker.update(100, { posture: false, distance: false })?.kind).toBe('greeting')
+  })
+})

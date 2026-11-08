@@ -13,6 +13,9 @@
   --c-grey-700: #5b636e;
   --c-grey-900: #2d333b;
 
+  /* 창 닫기 버튼 호버 (Figma Caption Button / Hover_close) */
+  --c-danger: #d53235;
+
   --c-white: #ffffff;
   --c-black: #000000;
   --c-scrim: rgba(22, 32, 47, 0.8);

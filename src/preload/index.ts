@@ -31,7 +31,10 @@ const api: PreloadApi = {
   },
   window: {
     show: (name: WindowName) => ipcRenderer.send(IPC.WINDOW_SHOW, name),
-    hide: (name: WindowName) => ipcRenderer.send(IPC.WINDOW_HIDE, name)
+    hide: (name: WindowName) => ipcRenderer.send(IPC.WINDOW_HIDE, name),
+    minimize: () => ipcRenderer.send(IPC.WINDOW_MINIMIZE),
+    toggleMaximize: () => ipcRenderer.send(IPC.WINDOW_TOGGLE_MAXIMIZE),
+    close: () => ipcRenderer.send(IPC.WINDOW_CLOSE)
   },
   camera: {
     openSettings: () => ipcRenderer.send(IPC.CAMERA_OPEN_SETTINGS)

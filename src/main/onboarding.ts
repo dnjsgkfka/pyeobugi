@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { Baseline } from '@shared/calibration'
 import { IPC } from '@shared/ipc'
 import { applyOverlayVisibility } from './overlay'
+import { applyStudyTimer } from './pomodoro'
 import { SettingsSchema, type Settings } from '@shared/schemas/settings'
 import { toKstIso } from '@shared/time'
 import { buildEvent } from './events'
@@ -73,7 +74,9 @@ export function registerOnboardingIpc(): void {
     const settings = getSettings().update(parsed.data as Partial<Settings>)
     broadcast(settings)
     scheduleFeatureEvent(settings.features)
-    // 오버레이 토글: 꺼져 있으면 거북이 창을 숨긴다
+    // 공부 타이머 토글: 켜면 바로 돌고, 끄면 멈춘다
+    applyStudyTimer()
+    // 오버레이 토글: 꺼져 있으면 거북이 창을 숨긴다 (타이머가 돌면 시간만 띄운다)
     applyOverlayVisibility()
     return settings
   })

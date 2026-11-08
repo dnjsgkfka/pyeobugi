@@ -21,6 +21,8 @@ export interface TurtleHandle {
   setNeck: (ratio: number) => void
   /** 혼자 돌아다닐지 */
   setWander: (on: boolean) => void
+  /** 사용자가 끌어서 옮긴다 (가로만). 끌고 난 뒤 잠시 혼자 걷지 않는다 */
+  dragTo: (x: number) => void
   destroy: () => void
 }
 
@@ -1103,6 +1105,13 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
       applyNeck()
     },
     /** 혼자 돌아다닐지 */
+    dragTo(x) {
+      // 끌고 있는 동안과 그 직후에는 혼자 걸어가지 않게 한다
+      manualUntil = performance.now() + 1500
+      override = null
+      pos = clampPos(x, pos[1])
+      place()
+    },
     setWander(on) {
       auto = !!on
       manualUntil = 0

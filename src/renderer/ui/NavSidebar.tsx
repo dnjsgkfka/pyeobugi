@@ -103,8 +103,17 @@ function Timer({
   )
 }
 
-/** Nav/Sidebar — 높이 805, bg main1, radius 12, padding 36px 16px. 접히면 폭 80 */
-export function NavSidebar({ collapsed = false }: { collapsed?: boolean }): React.JSX.Element {
+/**
+ * Nav/Sidebar — 높이 805, bg main1, radius 12, padding 36px 16px. 접히면 폭 80.
+ * 빈 곳을 누르면 펼쳐지고 접힌다 (`onToggle`). 메뉴와 감지 버튼은 눌러도 접히지 않는다.
+ */
+export function NavSidebar({
+  collapsed = false,
+  onToggle
+}: {
+  collapsed?: boolean
+  onToggle?: () => void
+}): React.JSX.Element {
   const [detection, setDetection] = useState<DetectionState | null>(null)
 
   useEffect(() => {
@@ -117,6 +126,9 @@ export function NavSidebar({ collapsed = false }: { collapsed?: boolean }): Reac
       className={`flex h-[805px] shrink-0 flex-col justify-between rounded-lg bg-main1 px-4 py-9 ${
         collapsed ? 'w-20 items-center' : 'w-60'
       }`}
+      /* 창 전체가 드래그 영역이라 풀어 주지 않으면 클릭이 들어오지 않는다 */
+      data-no-drag
+      onClick={onToggle}
     >
       <div className={`flex flex-col gap-8 ${collapsed ? 'w-full items-center' : ''}`}>
         {collapsed ? (
@@ -124,7 +136,11 @@ export function NavSidebar({ collapsed = false }: { collapsed?: boolean }): Reac
         ) : (
           <LogoFull className="h-[30px] w-29 shrink-0 self-start" />
         )}
-        <div className={`flex flex-col gap-2 ${collapsed ? 'items-center' : ''}`}>
+        {/* 메뉴와 감지 버튼은 사이드바 접기와 무관하게 동작한다 */}
+        <div
+          className={`flex flex-col gap-2 ${collapsed ? 'items-center' : ''}`}
+          onClick={(event) => event.stopPropagation()}
+        >
           <Tab
             to="/report"
             label="자세 리포트"
@@ -142,16 +158,18 @@ export function NavSidebar({ collapsed = false }: { collapsed?: boolean }): Reac
         </div>
       </div>
 
-      {detection?.running ? (
-        <Timer elapsedMs={detection.elapsedMs} collapsed={collapsed} />
-      ) : (
-        <ActionButton
-          collapsed={collapsed}
-          label="자세 감지 시작"
-          icon={<IconPlay className="shrink-0 text-main1" />}
-          onClick={() => window.api.posture.start()}
-        />
-      )}
+      <div className={collapsed ? '' : 'w-full'} onClick={(event) => event.stopPropagation()}>
+        {detection?.running ? (
+          <Timer elapsedMs={detection.elapsedMs} collapsed={collapsed} />
+        ) : (
+          <ActionButton
+            collapsed={collapsed}
+            label="자세 감지 시작"
+            icon={<IconPlay className="shrink-0 text-main1" />}
+            onClick={() => window.api.posture.start()}
+          />
+        )}
+      </div>
     </nav>
   )
 }
