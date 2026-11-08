@@ -32,18 +32,16 @@ const PRIORITY: BubbleKind[] = [
 
 const BUBBLES: Record<BubbleKind, Bubble> = {
   posture: { kind: 'posture', event: 'POSTURE', message: '목이 앞으로 나왔어요' },
-  // TODO(PM/디자인): 문구와 동작(눌러서 재설정) 확인 필요
   distance: {
     kind: 'distance',
     event: 'POSTURE',
-    message: '기준을 다시 잡아볼까요?',
+    message: '멀어졌어요\n기준을 재설정해주세요.',
     action: 'recalibrate'
   },
   'timer-break': { kind: 'timer-break', event: 'TIMER_BREAK', message: '휴식 시간이에요' },
-  // TODO(PM): 복구 보상 문구 확인 필요
-  encourage: { kind: 'encourage', event: 'ENCOURAGE', message: '좋아요, 자세가 돌아왔어요' },
-  greeting: { kind: 'greeting', event: 'GREETING', message: '오늘도 같이 바르게 앉아요' },
-  stretch: { kind: 'stretch', event: 'STRETCH', message: '잠깐 목을 펴 볼까요?' }
+  encourage: { kind: 'encourage', event: 'ENCOURAGE', message: '자세가 돌아왔어요!' },
+  greeting: { kind: 'greeting', event: 'GREETING', message: '오늘도 바른 자세!' },
+  stretch: { kind: 'stretch', event: 'STRETCH', message: '목을 펴 볼까요?' }
 }
 
 /** 한 번 띄우면 이만큼 보여 준다 (자세·거리처럼 조건이 이어지는 것은 조건이 끝날 때까지) */
