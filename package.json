@@ -21,6 +21,7 @@
     "build:linux": "electron-vite build && electron-builder --linux",
     "test": "vitest --run --passWithNoTests",
     "hex": "node scripts/check-hex.mjs",
+    "smoke": "node scripts/smoke.mjs",
     "assets": "node scripts/prepare-assets.mjs"
   },
   "dependencies": {
