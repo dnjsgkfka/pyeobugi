@@ -50,7 +50,9 @@ function createApp(): BrowserWindow {
     resizable: false,
     show: false,
     title: '펴부기',
-    ...(process.platform === 'linux' ? { icon } : {}),
+    // 개발 모드에서는 Electron 실행 파일 아이콘이 쓰이므로 창 아이콘을 직접 준다
+    // (패키징 빌드는 build/icon.ico 를 쓴다)
+    icon,
     webPreferences: webPreferences()
   })
   win.on('ready-to-show', () => win.show())

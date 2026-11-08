@@ -30,7 +30,7 @@ export interface TurtleOptions {
 }
 
 export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): TurtleHandle {
-  const MAX_SIZE = options.maxSize ?? 144
+  const MAX_SIZE = options.maxSize ?? 120
   const $id = (id) => root.querySelector('#' + id)
   const turtle = $id('turtle'),
     hop = $id('hop'),
@@ -56,17 +56,23 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
   function layout() {
     W = root.clientWidth
     H = root.clientHeight
-    size = Math.max(96, Math.min(MAX_SIZE, W * 0.3, H * 0.3))
-    // 화면 아래 한 줄만 돌아다닌다 (작업 중인 창을 가리지 않게).
-    // 띠가 얇아서 원근(minS)은 두지 않는다 — 위아래 크기 차이가 어색해진다
-    floor = { top: Math.max(0, H - size * 0.35), bottom: Math.max(0, H - 8), minS: 1 }
+    size = Math.max(80, Math.min(MAX_SIZE, W * 0.3, H * 0.3))
+    // 화면 맨 아래에서 좌우로만 돌아다닌다 (작업 중인 창을 가리지 않게).
+    // pos[1] 은 발끝 선이고 그림은 그 아래로 size*0.2 만큼 더 내려와 있어서,
+    // 그만큼 올려 두면 발이 잘리지 않고 창 바닥(= 작업 표시줄 위)에 딱 선다.
+    // top 과 bottom 을 같게 둬서 높이는 고정 — 원근(minS)도 쓰지 않는다.
+    const ground = Math.max(0, H - size * 0.2)
+    floor = { top: ground, bottom: ground, minS: 1 }
     turtle.style.setProperty('--size', size + 'px')
   }
   layout() // ResizeObserver 는 비동기로 처음 울리므로 여기서 한 번 잡아 둔다
   const depth = (y) => (floor ? depthOf(y) : (layout(), depthOf(y)))
-  const depthOf = (y) =>
-    floor.minS +
-    (1 - floor.minS) * Math.min(1, Math.max(0, (y - floor.top) / (floor.bottom - floor.top)))
+  const depthOf = (y) => {
+    const span = floor.bottom - floor.top
+    // 높이를 고정하면 띠 폭이 0 이다 → 나누지 않고 그대로
+    if (span <= 0) return floor.minS
+    return floor.minS + (1 - floor.minS) * Math.min(1, Math.max(0, (y - floor.top) / span))
+  }
   function clampPos(x, y) {
     y = Math.min(floor.bottom, Math.max(floor.top, y))
     const half = size * depth(y) * 0.5
