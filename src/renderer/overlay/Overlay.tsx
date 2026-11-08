@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BubblePicker, STRETCH_EVERY_MS, type Bubble } from '@shared/bubble'
 import type { PostureView } from '@shared/ipc'
-import { moodFrom, neckSince, nextNeck } from '@shared/pet'
+import { moodFrom, neckSince } from '@shared/pet'
 import { SpeechBubble } from '@renderer/ui/SpeechBubble'
 import './turtle.css'
 import { runTurtle, type TurtleHandle } from './turtle-animation'
@@ -16,9 +16,8 @@ export default function Overlay(): React.JSX.Element {
   const stage = useRef<HTMLDivElement>(null)
   const turtle = useRef<TurtleHandle | null>(null)
   const posture = useRef<PostureView | null>(null)
-  /** 목 길이는 매 틱 조금씩 더하고 뺀다 (0 = 아직 재지 않음, 타이머를 걸 때 채운다) */
-  const neck = useRef(0)
-  const lastTick = useRef(0)
+  /** 거북목으로 확정된 시각 (우리 시계). 목 길이는 여기서부터 잰다 */
+  const badStartedAt = useRef<number | null>(null)
 
   const picker = useRef(new BubblePicker())
   /** 이미 본 종료 이벤트 id — 한 번만 축하한다 */
@@ -101,20 +100,17 @@ export default function Overlay(): React.JSX.Element {
       }
     })
 
-    lastTick.current = Date.now()
     const timer = setInterval(() => {
       const now = Date.now()
-      const dt = now - lastTick.current
-      lastTick.current = now
       const feedback = posture.current?.feedback ?? null
       const mood = moodFrom(feedback)
-      // 거북목이면 '시작 시각부터 지금까지' 로 계산한다 — 판정 결과(1초 간격)에 맞추면 계단처럼 뛴다.
-      // 자세가 돌아오면 틱으로 부드럽게 줄인다
-      neck.current =
-        mood === 'bad' && feedback?.badSince != null
-          ? neckSince(feedback.badSince, now)
-          : nextNeck(neck.current, mood, dt)
-      turtle.current?.setNeck(neck.current)
+      if (mood === 'bad') badStartedAt.current ??= now
+      else badStartedAt.current = null
+      // 거북목이면 확정된 순간부터 지금까지로 계산한다 — 매 프레임 조금씩 늘어난다.
+      // 자세가 돌아오면 0 을 주고, 줄어드는 모습은 그림 쪽 애니메이션(최대 1.5초)에 맡긴다
+      turtle.current?.setNeck(
+        badStartedAt.current === null ? 0 : neckSince(badStartedAt.current, now)
+      )
 
       // 스트레칭 안내: 감지 중이고 설정에서 켜 둔 경우만
       if (detecting.current && stretchOn.current && now - stretchAt.current >= STRETCH_EVERY_MS) {
