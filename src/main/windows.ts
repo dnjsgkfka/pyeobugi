@@ -47,7 +47,12 @@ function createApp(): BrowserWindow {
     // 디자인에 타이틀바가 없다 → 테두리 없는 창.
     // 둥근 모서리는 Windows 11 이 알아서 그려 준다 (Win10 은 각진 모서리).
     frame: false,
-    resizable: false,
+    // 타이틀 바의 '전체' 버튼을 쓰려면 창을 키울 수 있어야 한다.
+    // 디자인(1280×832)보다 작아지지는 않게 최소 크기를 둔다 — 레이아웃이 고정 폭이다
+    resizable: true,
+    minWidth: 1280,
+    minHeight: 832,
+    maximizable: true,
     show: false,
     title: '펴부기',
     // 개발 모드에서는 Electron 실행 파일 아이콘이 쓰이므로 창 아이콘을 직접 준다

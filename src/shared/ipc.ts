@@ -38,6 +38,10 @@ export const IPC = {
   APP_QUIT: 'app:quit',
   WINDOW_SHOW: 'window:show',
   WINDOW_HIDE: 'window:hide',
+  /** 커스텀 타이틀 바 (프레임 없는 창이라 직접 처리한다) */
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_TOGGLE_MAXIMIZE: 'window:toggle-maximize',
+  WINDOW_CLOSE: 'window:close',
   /** app → main → detector: 시작/정지 명령 */
   DETECTOR_COMMAND: 'detector:command',
   /** detector → main → app: 상태 변경 */
@@ -97,6 +101,10 @@ export interface PreloadApi {
   window: {
     show: (name: WindowName) => void
     hide: (name: WindowName) => void
+    /** 타이틀 바 버튼 — 최소화 / 전체 / 닫기(트레이로 내려간다) */
+    minimize: () => void
+    toggleMaximize: () => void
+    close: () => void
   }
   camera: {
     /** Windows 설정 > 개인정보 > 카메라를 연다 */
