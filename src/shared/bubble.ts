@@ -66,7 +66,12 @@ export interface BubbleConditions {
   posture: boolean
   /** 기준 다시 잡기 권유 */
   distance: boolean
+  /** 뽀모도로가 도는 중 — 머리 위에 남은 시간을 띄우므로 말풍선을 줄인다 */
+  pomodoro?: boolean
 }
+
+/** 뽀모도로가 도는 동안에도 띄우는 것 (거북목 알림과 휴식 전환) */
+const DURING_POMODORO: BubbleKind[] = ['posture', 'timer-break']
 
 /**
  * 말풍선을 고른다.
@@ -91,9 +96,13 @@ export class BubblePicker {
 
   /** 지금 보여 줄 말풍선. 없으면 null */
   update(now: number, conditions: BubbleConditions): Bubble | null {
+    const allowed = (kind: BubbleKind): boolean =>
+      !conditions.pomodoro || DURING_POMODORO.includes(kind)
+
     const holding: BubbleKind[] = []
     if (conditions.posture) holding.push('posture')
-    if (conditions.distance) holding.push('distance')
+    if (conditions.distance && allowed('distance')) holding.push('distance')
+    const pending = this.pending.filter(allowed)
 
     // 떠 있는 것이 아직 유효한지 본다
     if (this.current) {
@@ -106,7 +115,7 @@ export class BubblePicker {
         return null
       }
       // 더 급한 것이 생기면 간격 없이 바로 바꿔 준다
-      const urgent = [...holding, ...this.pending].some(
+      const urgent = [...holding, ...pending].some(
         (next) => PRIORITY.indexOf(next) < PRIORITY.indexOf(kind)
       )
       if (!urgent) return BUBBLES[kind]
@@ -115,7 +124,7 @@ export class BubblePicker {
 
     if (now - this.lastEndedAt < MIN_GAP_MS) return null
 
-    const candidates = [...holding, ...this.pending].sort(
+    const candidates = [...holding, ...pending].sort(
       (a, b) => PRIORITY.indexOf(a) - PRIORITY.indexOf(b)
     )
     for (const kind of candidates) {
