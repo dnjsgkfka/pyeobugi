@@ -277,3 +277,38 @@ describe('429 재시도 대기 시간', () => {
     })
   })
 })
+
+describe('실서버에서 본 응답 형태', () => {
+  it('distribution 의 mildSeconds / mildRate 가 null 이어도 받는다', async () => {
+    // 실서버 스모크(#14)에서 mildSeconds: null, mildRate: null 로 왔다.
+    // Swagger 는 non-nullable 이지만 거부하면 리포트 화면이 오류로 떨어진다.
+    const api = createApiClient({
+      baseUrl: BASE,
+      deviceId: DEVICE_ID,
+      fetchImpl: () =>
+        Promise.resolve(
+          Response.json({
+            hasData: true,
+            generatedAt: '2026-11-08T10:00:00+09:00',
+            date: '2026-11-08',
+            day: { postureKeepRate: 85, turtleNeckCount: 1, pomodoroCount: 0, usageSeconds: 600 },
+            week: { postureKeepRate: 85, turtleNeckCount: 1, pomodoroCount: 0, usageSeconds: 600 },
+            hourly: [{ hour: 10, postureKeepRate: null }],
+            distribution: {
+              goodSeconds: 510,
+              mildSeconds: null,
+              turtleSeconds: 90,
+              goodRate: 85,
+              mildRate: null,
+              turtleRate: 15
+            }
+          })
+        ),
+      onError: () => {}
+    })
+    const result = await api.getReportSummary()
+    if (result.kind !== 'ok') throw new Error('ok 가 아님')
+    expect(result.data.distribution?.mildSeconds ?? 0).toBe(0)
+    expect(result.data.distribution?.turtleSeconds).toBe(90)
+  })
+})

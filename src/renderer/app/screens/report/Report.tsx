@@ -12,17 +12,30 @@ import { ReportEmpty, ReportError, ReportLoading } from './ReportStates'
 import { useReport } from './useReport'
 import { kstDateString } from '@shared/time'
 
-/** 자세 분포. Swagger 의 distribution(상태별 초) 을 그대로 쓴다 */
+/**
+ * 자세 분포. Swagger 의 distribution(상태별 초) 을 그대로 쓴다.
+ * 실서버가 아직 `mildSeconds: null` 을 보내는 경우가 있어 없는 값은 0 으로 본다.
+ */
 function donutSlices(distribution: NonNullable<ReportSummary['distribution']>): DonutSlice[] {
   return [
     {
       label: '바른 자세',
-      seconds: distribution.goodSeconds,
+      seconds: distribution.goodSeconds ?? 0,
       tone: 'bg-main4',
       stroke: '--c-main4'
     },
-    { label: '주의', seconds: distribution.mildSeconds, tone: 'bg-main3', stroke: '--c-main3' },
-    { label: '거북목', seconds: distribution.turtleSeconds, tone: 'bg-main2', stroke: '--c-main2' }
+    {
+      label: '주의',
+      seconds: distribution.mildSeconds ?? 0,
+      tone: 'bg-main3',
+      stroke: '--c-main3'
+    },
+    {
+      label: '거북목',
+      seconds: distribution.turtleSeconds ?? 0,
+      tone: 'bg-main2',
+      stroke: '--c-main2'
+    }
   ]
 }
 
@@ -40,7 +53,8 @@ function badHours(timeline: ReportSummary['turtleNeckTimeline']): number[] {
 /** 도넛 전체 합. 비율이 아니라 초로 그리므로 세 조각을 더한다 */
 function distributionSeconds(distribution: ReportSummary['distribution']): number {
   if (!distribution) return 0
-  return distribution.goodSeconds + distribution.mildSeconds + distribution.turtleSeconds
+  const { goodSeconds, mildSeconds, turtleSeconds } = distribution
+  return (goodSeconds ?? 0) + (mildSeconds ?? 0) + (turtleSeconds ?? 0)
 }
 
 /**

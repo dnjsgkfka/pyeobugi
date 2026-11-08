@@ -35,14 +35,18 @@ const PeriodSummarySchema = z.object({
 })
 export type PeriodSummary = z.infer<typeof PeriodSummarySchema>
 
-/** Swagger Distribution. 상태별 시간과 비율 */
+/**
+ * Swagger Distribution. 상태별 시간과 비율.
+ * Swagger 는 non-nullable 로 적혀 있지만 실서버가 `mildSeconds: null` 을 보내므로
+ * (실서버 스모크, #14) 전부 null 을 받아 준다 — 화면에서는 0 으로 본다.
+ */
 const DistributionSchema = z.object({
-  goodSeconds: seconds,
-  mildSeconds: seconds,
-  turtleSeconds: seconds,
-  goodRate: rate,
-  mildRate: rate,
-  turtleRate: rate
+  goodSeconds: seconds.nullish(),
+  mildSeconds: seconds.nullish(),
+  turtleSeconds: seconds.nullish(),
+  goodRate: rate.nullish(),
+  mildRate: rate.nullish(),
+  turtleRate: rate.nullish()
 })
 export type Distribution = z.infer<typeof DistributionSchema>
 
