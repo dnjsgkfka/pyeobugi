@@ -1,5 +1,5 @@
 import { BAD_ENTER_SCORE, postureScore, type Baseline } from './ai/score'
-import type { Sensitivity } from './posture'
+import type { Sensitivity } from './schemas/settings'
 
 /**
  * 교정 강도
