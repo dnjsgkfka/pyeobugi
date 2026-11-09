@@ -33,8 +33,18 @@ if (existsSync(FONT_SRC)) {
   process.exit(1)
 }
 
+// FilesetResolver 는 SIMD 지원 여부에 따라 vision_wasm_internal / nosimd 둘 중 하나만 쓴다.
+// module 변형(13MB)은 쓰지 않으므로 복사하지 않는다 (설치본 크기)
+const WASM_KEEP = /^vision_wasm_(internal|nosimd_internal)\.(js|wasm)$/
+
 if (existsSync(WASM_SRC)) {
-  cpSync(WASM_SRC, `${OUT_DIR}/wasm`, { recursive: true })
+  cpSync(WASM_SRC, `${OUT_DIR}/wasm`, {
+    recursive: true,
+    filter: (src) => {
+      const name = src.split(/[\\/]/).pop()
+      return src === WASM_SRC || !name.includes('.') || WASM_KEEP.test(name)
+    }
+  })
   console.log('copied wasm')
 } else {
   console.error(`missing ${WASM_SRC} — run pnpm install first`)
