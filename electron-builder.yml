@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: turtle
+appId: com.pyeobugi.app
+productName: pyeobugi
 directories:
   buildResources: build
 files:
@@ -27,7 +27,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: turtle
+  executableName: pyeobugi
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -50,11 +50,9 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: pyeobugi
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates
+# 자동 업데이트는 쓰지 않는다. 릴리스 설치본은 GitHub Releases 에 직접 올린다.
