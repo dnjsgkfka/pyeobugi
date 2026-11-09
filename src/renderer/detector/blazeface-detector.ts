@@ -35,6 +35,8 @@ import { createFaceDetector, detectFace } from './face-detector'
  * 너무 커지면 IPC 가 버거워지므로 가로 1920 에서만 자른다.
  */
 const PREVIEW_MS = 100
+/** 카메라를 닫고 다시 열기까지 기다리는 시간 (윈도우가 장치를 놓아주는 데 걸림) */
+const RELEASE_MS = 300
 /** 기준을 잡을 때 '방금 본 얼굴' 로 인정하는 시간 */
 const FRESH_MS = 1_500
 const PREVIEW_MAX_WIDTH = 1920
@@ -60,6 +62,8 @@ export function createBlazeFaceDetector(): PostureDetector {
   let openedForPreview = false
   /** start() 가 겹쳐 들어와 카메라·모델이 두 개 뜨는 것을 막는다 */
   let starting: Promise<void> | null = null
+  /** 카메라 열기 직렬화용 체인 */
+  let attaching: Promise<void> = Promise.resolve()
   let running = false
 
   let baseline: Baseline | null = null
@@ -173,9 +177,16 @@ export function createBlazeFaceDetector(): PostureDetector {
   }
 
   /** 카메라를 열어 video 에 붙인다. 프리뷰면 큰 해상도로 연다 */
-  async function attach(preview: boolean): Promise<void> {
+  async function attachNow(preview: boolean): Promise<void> {
+    // 같은 카메라를 두 번 열면 먼저 열린 형식(320×240)을 그대로 돌려주는 장치가 있다.
+    // 그래서 해상도를 바꿀 때는 먼저 닫고 나서 연다.
+    if (stream) {
+      closeCamera(stream)
+      stream = null
+      // 닫은 직후에 바로 열면 장치가 아직 점유돼 AbortError 가 난다
+      await new Promise((resolve) => setTimeout(resolve, RELEASE_MS))
+    }
     const next = await openCamera(preview)
-    closeCamera(stream)
     stream = next
     openedForPreview = preview
     video ??= document.createElement('video')
@@ -184,6 +195,24 @@ export function createBlazeFaceDetector(): PostureDetector {
     video.playsInline = true
     await video.play()
     console.log(`[detector] camera ${sizeOfStream(next)}${preview ? ' (preview)' : ''}`)
+  }
+
+  /**
+   * 카메라 열기를 한 줄로 세운다.
+   * 시작과 프리뷰 전환이 겹치면 앞의 `play()` 가 뒤의 `srcObject` 교체로 취소돼
+   * AbortError 로 시작이 실패한다.
+   */
+  function attach(preview: boolean): Promise<void> {
+    const run = async (): Promise<void> => {
+      if (stream && openedForPreview === preview) return
+      await attachNow(preview)
+    }
+    const next = attaching.then(run, run)
+    attaching = next.then(
+      () => undefined,
+      () => undefined
+    )
+    return next
   }
 
   async function start(): Promise<void> {
