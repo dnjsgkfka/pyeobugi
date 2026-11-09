@@ -6,7 +6,8 @@ import type {
   DetectionUpdate,
   DetectorCommand,
   DetectorStatus,
-  PostureSample
+  PostureSample,
+  PreviewFrame
 } from '@shared/detector'
 import type { PomodoroState } from '@shared/pomodoro'
 import type { ReportView } from '@shared/report'
@@ -83,8 +84,8 @@ const api: PreloadApi = {
     onCalibration: (listener: (phase: CalibrationPhase) => void) =>
       subscribe<CalibrationPhase>(IPC.CALIBRATION_STATE, listener),
     setPreview: (on: boolean) => ipcRenderer.send(IPC.PREVIEW_SET, on),
-    onPreviewFrame: (listener: (frame: string) => void) =>
-      subscribe<string>(IPC.PREVIEW_FRAME, listener),
+    onPreviewFrame: (listener: (preview: PreviewFrame) => void) =>
+      subscribe<PreviewFrame>(IPC.PREVIEW_FRAME, listener),
     onCommand: (listener: (command: DetectorCommand) => void) =>
       subscribe<DetectorCommand>(IPC.DETECTOR_COMMAND, listener),
     bubbleShown: (bubbleType: BubbleType) => ipcRenderer.send(IPC.BUBBLE_SHOWN, bubbleType),
@@ -94,7 +95,7 @@ const api: PreloadApi = {
     onCalibrateRequest: (listener: () => void) => subscribe(IPC.CALIBRATION_START, listener),
     onPreviewRequest: (listener: (on: boolean) => void) =>
       subscribe<boolean>(IPC.PREVIEW_SET, listener),
-    sendPreviewFrame: (frame: string) => ipcRenderer.send(IPC.PREVIEW_FRAME, frame),
+    sendPreviewFrame: (preview: PreviewFrame) => ipcRenderer.send(IPC.PREVIEW_FRAME, preview),
     sendUpdate: (update: DetectionUpdate) => ipcRenderer.send(IPC.POSTURE_UPDATE, update),
     sendCalibration: (phase: CalibrationPhase) => ipcRenderer.send(IPC.CALIBRATION_STATE, phase),
     sendStatus: (status: DetectorStatus) => ipcRenderer.send(IPC.DETECTOR_STATUS, status)

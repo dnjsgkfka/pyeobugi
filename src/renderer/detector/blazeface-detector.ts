@@ -22,7 +22,8 @@ import type {
   CalibrationPhase,
   DetectionUpdate,
   DetectorStatus,
-  PostureDetector
+  PostureDetector,
+  PreviewFrame
 } from '@shared/detector'
 import { classifyCameraError } from './camera-error'
 import { closeCamera, openCamera, sizeOfStream } from './camera'
@@ -34,6 +35,8 @@ import { createFaceDetector, detectFace } from './face-detector'
  * 너무 커지면 IPC 가 버거워지므로 가로 1920 에서만 자른다.
  */
 const PREVIEW_MS = 100
+/** 기준을 잡을 때 '방금 본 얼굴' 로 인정하는 시간 */
+const FRESH_MS = 1_500
 const PREVIEW_MAX_WIDTH = 1920
 const PREVIEW_QUALITY = 0.7
 
@@ -43,7 +46,7 @@ export function createBlazeFaceDetector(): PostureDetector {
   const updateListeners = new Set<Listener<DetectionUpdate>>()
   const statusListeners = new Set<Listener<DetectorStatus>>()
   const calibrationListeners = new Set<Listener<CalibrationPhase>>()
-  const previewListeners = new Set<Listener<string>>()
+  const previewListeners = new Set<Listener<PreviewFrame>>()
 
   let detector: FaceDetector | null = null
   let stream: MediaStream | null = null
@@ -75,17 +78,29 @@ export function createBlazeFaceDetector(): PostureDetector {
   /**
    * 지금 자세를 기준으로 저장한다.
    * 한 프레임이 아니라 엔진이 EMA 로 평활해 둔 pitch·size 를 쓴다 (Figma: 누르는 순간의 위치).
+   * 다만 엔진은 얼굴을 놓쳐도 3초는 직전 값을 들고 있으므로,
+   * 누르는 순간에 얼굴이 실제로 보이는지 다시 확인한다 (손으로 가리고 눌러도 저장되면 안 된다).
    */
   function captureBaseline(): void {
     if (!running) return
-    if (!engine.present || engine.pitch === null || engine.size === null) {
-      emitCalibration({
-        phase: 'failed',
-        message: '얼굴이 보이지 않아요. 화면을 보고 다시 눌러 주세요.'
-      })
+    const missing = '얼굴이 보이지 않아요. 화면을 보고 다시 눌러 주세요.'
+
+    const found = detector && video ? detectFace(detector, video) : null
+    if (!found?.sample) {
+      emitCalibration({ phase: 'failed', message: missing })
       return
     }
-    const next: Baseline = { pitch: engine.pitch, size: engine.size }
+    const fresh = engine.lastSeenAt !== null && Date.now() - engine.lastSeenAt < FRESH_MS
+    if (!engine.present || engine.pitch === null || engine.size === null || !fresh) {
+      // 엔진이 아직 이 얼굴을 못 받았다 → 평활값 대신 방금 본 값으로 잡는다
+      const next: Baseline = { pitch: found.sample.pitch, size: found.sample.size }
+      finishCalibration(next)
+      return
+    }
+    finishCalibration({ pitch: engine.pitch, size: engine.size })
+  }
+
+  function finishCalibration(next: Baseline): void {
     // 기준이 바뀌었으니 진행 중이던 판정은 끝낸다 (RECALIBRATED)
     const reset = resetPosture(engine, Date.now())
     engine = reset.state
@@ -97,7 +112,11 @@ export function createBlazeFaceDetector(): PostureDetector {
   /** 다음 추론 때 함께 내보낼 전이 (기준 재설정처럼 루프 밖에서 생긴 것) */
   const pendingTransitions: Transition[] = []
 
-  /** 프리뷰: 추론과 별개로 돌린다. 축소한 JPEG 만 내보내고 원본 프레임은 이 창에 남는다 */
+  /**
+   * 프리뷰: 추론과 별개로 돌린다. 축소한 JPEG 과 얼굴 점만 내보내고 원본 프레임은 이 창에 남는다.
+   * 온보딩에서 점이 다 보이는지 사람이 눈으로 확인해야 하므로, 프리뷰 간격마다 얼굴도 다시 찾는다
+   * (판정용 추론은 그대로 적응형 주기로 돈다).
+   */
   function sendPreview(): void {
     if (!video || video.videoWidth === 0) return
     // 카메라가 주는 크기 그대로 (아주 큰 경우에만 줄인다)
@@ -113,7 +132,13 @@ export function createBlazeFaceDetector(): PostureDetector {
     if (!context) return
     context.drawImage(video, 0, 0, width, height)
     const frame = previewCanvas.toDataURL('image/jpeg', PREVIEW_QUALITY)
-    previewListeners.forEach((listener) => listener(frame))
+
+    const found = detector ? detectFace(detector, video) : null
+    const preview: PreviewFrame = {
+      frame,
+      face: found ? { box: found.box, keypoints: found.keypoints, ok: found.sample !== null } : null
+    }
+    previewListeners.forEach((listener) => listener(preview))
   }
 
   function loop(): void {

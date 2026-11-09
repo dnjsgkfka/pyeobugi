@@ -7,7 +7,8 @@ import type {
   DetectionUpdate,
   DetectorCommand,
   DetectorStatus,
-  PostureSample
+  PostureSample,
+  PreviewFrame
 } from './detector'
 import type { PomodoroState } from './pomodoro'
 
@@ -163,7 +164,7 @@ export interface PreloadApi {
     onCalibration: (listener: (phase: CalibrationPhase) => void) => () => void
     /** 온보딩 카메라 프리뷰 (화면을 벗어나면 반드시 끈다) */
     setPreview: (on: boolean) => void
-    onPreviewFrame: (listener: (frame: string) => void) => () => void
+    onPreviewFrame: (listener: (preview: PreviewFrame) => void) => () => void
     /** overlay 쪽 */
     bubbleShown: (bubbleType: BubbleType) => void
     setClickable: (on: boolean) => void
@@ -174,7 +175,7 @@ export interface PreloadApi {
     onCommand: (listener: (command: DetectorCommand) => void) => () => void
     onCalibrateRequest: (listener: () => void) => () => void
     onPreviewRequest: (listener: (on: boolean) => void) => () => void
-    sendPreviewFrame: (frame: string) => void
+    sendPreviewFrame: (preview: PreviewFrame) => void
     sendUpdate: (update: DetectionUpdate) => void
     sendCalibration: (phase: CalibrationPhase) => void
     sendStatus: (status: DetectorStatus) => void

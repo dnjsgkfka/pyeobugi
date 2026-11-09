@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import type { CalibrationPhase } from '@shared/detector'
-import type { PostureView } from '@shared/ipc'
+import type { CalibrationPhase, FaceMarks } from '@shared/detector'
 import { Button } from '@renderer/ui/Button'
 import { Dialog } from '@renderer/ui/Dialog'
 import { CameraPreview } from './CameraPreview'
@@ -12,7 +11,7 @@ import { OnboardingPanel } from './OnboardingPanel'
 const COPY = {
   searching: {
     title: '얼굴이 보이도록 앉아주세요.',
-    body: '점선 안에 얼굴과 어깨가 들어오면 자동으로 다음 단계로 넘어가요.'
+    body: '두 눈·코·입·양쪽 귀에 점이 모두 찍히면 다음 단계로 넘어가요.'
   },
   ready: {
     title: '바른 자세로 앉은 뒤 기준을 잡아주세요.',
@@ -25,7 +24,8 @@ export default function Calibrate(): React.JSX.Element {
   const isRecalibration = useLocation().pathname === '/recalibrate'
   const saved = useRef(false)
 
-  const [face, setFace] = useState(false)
+  /** 점 여섯 개가 다 보여야(각도를 낼 수 있어야) 기준을 잡을 수 있다 */
+  const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
@@ -33,10 +33,6 @@ export default function Calibrate(): React.JSX.Element {
     // 기준을 잡는 동안에는 카메라만 켠다.
     // '자세 감지 시작' 을 누르지 않았으면 경과 시간·사용 구간·이벤트가 쌓이면 안 된다.
     window.api.posture.openCamera()
-    const offState = window.api.posture.onState((view: PostureView) => {
-      // 얼굴이 보이는지만 본다 (판정은 기준이 있어야 돌아간다)
-      setFace(view.feedback.phase !== 'UNAVAILABLE')
-    })
     const offCalibration = window.api.posture.onCalibration((phase: CalibrationPhase) => {
       if (phase.phase === 'failed') {
         setFailed(phase.message)
@@ -50,27 +46,30 @@ export default function Calibrate(): React.JSX.Element {
         .then(() => setDone(true))
     })
     return () => {
-      offState()
       offCalibration()
       // 감지 중이었다면 그대로 두고, 기준 잡기 때문에 켠 것이면 끈다
       window.api.posture.closeCameraIfIdle()
     }
   }, [isRecalibration])
 
+  const onFace = useCallback((face: FaceMarks | null) => {
+    setReady(face?.ok === true)
+  }, [])
+
   const capture = useCallback(() => {
     saved.current = false
     window.api.posture.calibrate()
   }, [])
 
-  const copy = face ? COPY.ready : COPY.searching
+  const copy = ready ? COPY.ready : COPY.searching
 
   return (
     <div className="relative h-full w-full">
-      <CameraPreview />
-      <OnboardingHeader current={face ? 3 : 2} />
+      <CameraPreview onFace={onFace} />
+      <OnboardingHeader current={ready ? 3 : 2} />
 
       <OnboardingPanel title={copy.title} body={failed ?? copy.body}>
-        {face && (
+        {ready && (
           <Button size="lg" className="w-full" onClick={capture}>
             기준 잡기
           </Button>
