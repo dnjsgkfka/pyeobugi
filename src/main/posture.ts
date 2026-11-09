@@ -15,8 +15,10 @@ let lostSince: number | null = null
 /** 자리를 비운 것으로 보는 시간. UsageTracker 의 기본값과 맞춘다 */
 const AWAY_MS = 30_000
 
-/** 마지막으로 받은 판정 상태 (트레이·디버그용) */
-let lastPhase: DetectionUpdate['feedback']['phase'] = 'UNAVAILABLE'
+/** detector 창이 보낸 것만 받는다 (다른 창이 흉내내지 못하게) */
+function fromDetector(event: IpcMainEvent): boolean {
+  return event.sender === getWindow('detector')?.webContents
+}
 
 /**
  * 자리를 오래 비웠는가.
@@ -29,10 +31,6 @@ function isAway(now: number, face: boolean): boolean {
   }
   if (lostSince === null) lostSince = now
   return now - lostSince >= AWAY_MS
-}
-
-export function getPostureState(): string {
-  return lastPhase
 }
 
 /**
@@ -67,12 +65,11 @@ function enqueueTransitions(update: DetectionUpdate): void {
  */
 export function registerPostureIpc(): void {
   ipcMain.on(IPC.POSTURE_UPDATE, (event: IpcMainEvent, raw: unknown) => {
-    if (event.sender !== getWindow('detector')?.webContents) return
+    if (!fromDetector(event)) return
     const update = raw as DetectionUpdate
     if (!update?.feedback || !update.sample) return
 
     const { sample, feedback, distance } = update
-    lastPhase = feedback.phase
 
     // 판정과 무관하게 원시 샘플은 app 창으로 넘긴다 (개발 화면에서 쓴다)
     getWindow('app')?.webContents.send(IPC.POSTURE_SAMPLE, sample)
@@ -115,14 +112,14 @@ export function registerPostureIpc(): void {
 
   // detector → app: 축소한 카메라 프레임. 저장하지도, 로그에 남기지도 않는다
   ipcMain.on(IPC.PREVIEW_FRAME, (event: IpcMainEvent, preview: unknown) => {
-    if (event.sender !== getWindow('detector')?.webContents) return
+    if (!fromDetector(event)) return
     if (typeof (preview as { frame?: unknown })?.frame !== 'string') return
     getWindow('app')?.webContents.send(IPC.PREVIEW_FRAME, preview)
   })
 
   // detector → app: 기준 잡기 진행 상태
   ipcMain.on(IPC.CALIBRATION_STATE, (event: IpcMainEvent, phase: unknown) => {
-    if (event.sender !== getWindow('detector')?.webContents) return
+    if (!fromDetector(event)) return
     getWindow('app')?.webContents.send(IPC.CALIBRATION_STATE, phase)
   })
 }
