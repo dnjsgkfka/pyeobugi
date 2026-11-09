@@ -9,6 +9,16 @@ let userDataDir = ''
 /** 등록을 동시에 여러 번 하지 않게 진행 중인 약속을 붙잡아 둔다 */
 let registering: Promise<boolean> | null = null
 
+/**
+ * mock 으로 받은 secret 은 파일에 남기지 않는다.
+ * 개발(mock)과 배포(실서버)가 같은 `device.json` 을 쓰는데, 가짜 secret 이 저장되면
+ * 실서버에서 401 → 재등록 → 409 → 새 기기 ID 발급이 되어 운영 DB 에 기기가 하나씩 쌓인다.
+ */
+function persistSecret(next: Device, deviceSecret: string): Device {
+  if (USE_MOCK) return { deviceId: next.deviceId, deviceSecret }
+  return saveDeviceSecret(userDataDir, next, deviceSecret)
+}
+
 /** 앱 시작 시 한 번. mock 이 켜져 있으면 먼저 띄운다. */
 export async function initApi(): Promise<ApiClient> {
   if (USE_MOCK) {
@@ -21,6 +31,8 @@ export async function initApi(): Promise<ApiClient> {
 
   userDataDir = app.getPath('userData')
   device = loadOrCreateDevice(userDataDir)
+  // mock 에서는 저장된 secret 을 쓰지 않는다 (실서버 secret 을 mock 요청에 보내지 않도록)
+  if (USE_MOCK) device = { deviceId: device.deviceId, deviceSecret: null }
   client = createApiClient({
     baseUrl: API_BASE_URL,
     deviceId: () => device.deviceId,
@@ -56,7 +68,7 @@ async function register(): Promise<boolean> {
   const result = await api.registerDevice()
 
   if (result.kind === 'ok') {
-    device = saveDeviceSecret(userDataDir, device, result.deviceSecret)
+    device = persistSecret(device, result.deviceSecret)
     console.log('[api] device registered')
     return true
   }
@@ -67,7 +79,7 @@ async function register(): Promise<boolean> {
     device = resetDevice(userDataDir)
     const retried = await api.registerDevice()
     if (retried.kind !== 'ok') return false
-    device = saveDeviceSecret(userDataDir, device, retried.deviceSecret)
+    device = persistSecret(device, retried.deviceSecret)
     console.log('[api] device registered with a new id')
     return true
   }
