@@ -91,6 +91,8 @@ export function registerOnboardingIpc(): void {
       baseline: { ...value, savedAt: toKstIso(new Date()) }
     })
     broadcast(settings)
+    // 온보딩을 막 끝냈으면 이제 거북이를 띄운다
+    applyOverlayVisibility()
     // 기준값 자체는 보내지 않는다. 완료 사실만 기록한다.
     getQueue().enqueue(
       buildEvent('CALIBRATION_COMPLETED', { isRecalibration: isRecalibration === true })
