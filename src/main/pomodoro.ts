@@ -35,21 +35,21 @@ function halt(): void {
   timer = null
 }
 
-export function startPomodoro(): PomodoroState {
+function startPomodoro(): PomodoroState {
   const state = pomodoro.start(Date.now())
   run()
   broadcast(state)
   return state
 }
 
-export function pausePomodoro(): PomodoroState {
+function pausePomodoro(): PomodoroState {
   const state = pomodoro.pause(Date.now())
   halt()
   broadcast(state)
   return state
 }
 
-export function stopPomodoro(): PomodoroState {
+function stopPomodoro(): PomodoroState {
   const state = pomodoro.stop()
   halt()
   broadcast(state)
@@ -79,6 +79,6 @@ export function applyStudyTimer(): void {
   else stopPomodoro()
 }
 
-export function isPomodoroRunning(): boolean {
+function isPomodoroRunning(): boolean {
   return pomodoro.value.running
 }

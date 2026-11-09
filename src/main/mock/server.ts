@@ -11,8 +11,4 @@ export function startMock(scenario: Scenario = 'ok'): void {
   console.log(`[mock] API mock started (scenario: ${scenario})`)
 }
 
-export function stopMock(): void {
-  server.close()
-}
-
 export { setScenario, resetMock } from './handlers'
