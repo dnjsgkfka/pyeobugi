@@ -9,6 +9,21 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # 아래 패키지는 빌드 결과(out/)에 이미 들어가 있어 설치본에 원본이 필요 없다.
+  # 폰트는 out/renderer/fonts, MediaPipe wasm 은 out/renderer/mediapipe 로 복사된다
+  - '!node_modules/pretendard/**'
+  - '!node_modules/@mediapipe/**'
+  # 렌더러 번들에 포함되는 것들 (main 은 쓰지 않는다)
+  - '!node_modules/react-router/**'
+  - '!node_modules/react-router-dom/**'
+  - '!node_modules/@tanstack/**'
+  - '!node_modules/react/**'
+  - '!node_modules/react-dom/**'
+  # 개발용 mock (프로덕션은 MAIN_VITE_USE_MOCK=false)
+  - '!node_modules/msw/**'
+  # 소스·문서·소스맵은 실행에 쓰이지 않는다
+  - '!node_modules/**/{docs,src}/**'
+  - '!node_modules/**/*.{map,md,ts,mts,cts}'
 asarUnpack:
   - resources/**
 win:

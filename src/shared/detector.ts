@@ -56,6 +56,21 @@ export interface DetectionUpdate {
   intervalMs: number
 }
 
+/** 얼굴 위에 찍는 점 (BlazeFace 키포인트 6개와 네모). 좌표는 0~1 비율 */
+export interface FaceMarks {
+  box: { x: number; y: number; width: number; height: number }
+  keypoints: { x: number; y: number }[]
+  /** 기준을 잡을 수 있는 상태인가 (점이 모두 보이고 각도를 낼 수 있다) */
+  ok: boolean
+}
+
+/** 온보딩 프리뷰 한 장 */
+export interface PreviewFrame {
+  /** data:image/jpeg;base64,… */
+  frame: string
+  face: FaceMarks | null
+}
+
 /** 기준 잡기 진행 상태 */
 export type CalibrationPhase = CalibrationResult | { phase: 'idle' }
 
@@ -70,9 +85,9 @@ export interface PostureDetector {
    * 한 프레임이 아니라 엔진이 1초 EMA 로 평활한 값이라 떨림에 덜 흔들린다.
    */
   calibrate: () => void
-  /** 온보딩에서만 켠다. 축소한 프레임을 내보낸다 (기기 밖으로 나가지 않는다) */
+  /** 온보딩에서만 켠다. 프레임과 얼굴 점을 내보낸다 (기기 밖으로 나가지 않는다) */
   setPreview: (on: boolean) => void
-  onPreview: (listener: (frame: string) => void) => () => void
+  onPreview: (listener: (preview: PreviewFrame) => void) => () => void
   onUpdate: (listener: (update: DetectionUpdate) => void) => () => void
   onCalibration: (listener: (phase: CalibrationPhase) => void) => () => void
   onStatus: (listener: (status: DetectorStatus) => void) => () => void
