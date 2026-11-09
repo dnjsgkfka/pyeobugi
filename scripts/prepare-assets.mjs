@@ -5,12 +5,8 @@ import { createWriteStream, cpSync, existsSync, mkdirSync } from 'node:fs'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 
-// face_landmarker: 기존(비교용) 구현. blaze_face_short_range: AI 파트와 같은 경량 검출기
+// blaze_face_short_range: AI 파트와 같은 경량 검출기 (0.23MB)
 const MODELS = [
-  {
-    file: 'face_landmarker.task',
-    url: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
-  },
   {
     file: 'blaze_face_short_range.tflite',
     url: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
