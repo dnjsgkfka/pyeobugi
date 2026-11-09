@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { Baseline } from '@shared/calibration'
+import type { Baseline } from '@shared/ai/score'
 import type { BubbleType } from '@shared/bubble'
 import type {
   CalibrationPhase,

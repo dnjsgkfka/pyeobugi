@@ -1,4 +1,4 @@
-import type { Baseline } from './calibration'
+import type { Baseline } from './ai/score'
 import type { PostureFeedback } from './ai/feedback'
 import type { BubbleType } from './bubble'
 import type { DistanceState } from './ai/distance'

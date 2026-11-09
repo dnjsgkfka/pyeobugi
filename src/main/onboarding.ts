@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
-import type { Baseline } from '@shared/calibration'
+import type { Baseline } from '@shared/ai/score'
 import { IPC } from '@shared/ipc'
 import { applyOverlayVisibility } from './overlay'
 import { applyStudyTimer } from './pomodoro'
