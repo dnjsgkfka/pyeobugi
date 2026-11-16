@@ -5,8 +5,14 @@
   width: var(--size);
   height: var(--size);
   will-change: transform;
-  cursor: pointer;
-  touch-action: manipulation;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* 끌고 있는 동안 (실제 커서는 오버레이 body 에서 바꾼다) */
+.turtle.held {
+  cursor: grabbing;
 }
 .hop,
 .bob,
@@ -248,6 +254,56 @@
     transform: rotate(0.3deg);
   }
 }
+/* ── 잡혔을 때: 네 다리를 번갈아 파닥, 머리는 바르르, 눈은 질끈 ── */
+.turtle.held .bob {
+  animation: none;
+}
+.turtle.held .legA,
+.turtle.held .legA2 {
+  animation: flail 0.2s ease-in-out infinite alternate;
+}
+.turtle.held .legB,
+.turtle.held .legB2 {
+  animation: flail 0.2s ease-in-out -0.1s infinite alternate;
+}
+@keyframes flail {
+  from {
+    transform: rotate(-24deg) translateY(-5px);
+  }
+  to {
+    transform: rotate(20deg) translateY(4px);
+  }
+}
+.turtle.held .head-f {
+  animation: tremble 0.16s ease-in-out infinite alternate;
+}
+@keyframes tremble {
+  from {
+    transform: rotate(-3deg) translateY(1px);
+  }
+  to {
+    transform: rotate(3deg) translateY(-2px);
+  }
+}
+/* 잡혀 있는 동안과 떨어지는 동안은 눈을 감는다 */
+.turtle.held .v-front .eyes,
+.turtle.falling .v-front .eyes {
+  display: none;
+}
+.turtle.held .v-front .closed-eyes,
+.turtle.falling .v-front .closed-eyes {
+  display: inline;
+}
+/* 떨어지는 중에는 파닥임이 조금 느려진다 */
+.turtle.falling .legA,
+.turtle.falling .legA2 {
+  animation: flail 0.26s ease-in-out infinite alternate;
+}
+.turtle.falling .legB,
+.turtle.falling .legB2 {
+  animation: flail 0.26s ease-in-out -0.13s infinite alternate;
+}
+
 /* OS 의 "동작 줄이기" 를 켰을 때만 멈춘다 (프로토타입과 동일) */
 @media (prefers-reduced-motion: reduce) {
   .turtle * {

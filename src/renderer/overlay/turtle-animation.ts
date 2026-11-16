@@ -21,8 +21,16 @@ export interface TurtleHandle {
   setNeck: (ratio: number) => void
   /** 혼자 돌아다닐지 */
   setWander: (on: boolean) => void
-  /** 사용자가 끌어서 옮긴다 (가로만). 끌고 난 뒤 잠시 혼자 걷지 않는다 */
-  dragTo: (x: number) => void
+  /** 지금 잡을 수 있는가. 목이 늘어나 있으면 false */
+  canGrab: () => boolean
+  /** 잡고 있는 중인가 */
+  isHeld: () => boolean
+  /** 잡는다 (화면 좌표). 잡혔으면 true */
+  grab: (clientX: number, clientY: number, pointerType?: string) => boolean
+  /** 잡은 채로 끈다 */
+  moveGrab: (clientX: number, clientY: number) => void
+  /** 놓는다. 최근 움직임만큼 던져지고 바닥으로 떨어진다 */
+  release: () => void
   destroy: () => void
 }
 
@@ -156,6 +164,7 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
     )
     await sleep(50)
     for (const d of path) {
+      if (busy()) return
       show(d)
       await sleep(STEP)
     }
@@ -170,6 +179,214 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
     return ['right', 'fr', 'front', 'fl', 'left', 'bl', 'back', 'br'][idx]
   }
   let override = null
+
+  /* ── 잡기·던지기·떨어지기 ───────────────────────────────
+     목이 늘어난 동안에는 잡히지 않는다 (자세 피드백이 우선).
+     잡고 있는 중에 목이 늘어나기 시작하면 손에서 놓아 버린다. */
+  const G = 2600 // 중력 (px/s²)
+  let grabbed = false,
+    airborne = false,
+    landed = false,
+    touchMode = false
+  let cur = { x: 0, y: 0 },
+    target = { x: 0, y: 0 },
+    lift = 0,
+    theta = 0,
+    omega = 0,
+    vSm = 0,
+    aSm = 0,
+    hist = [],
+    heldRaf = null
+  const busy = () => grabbed || airborne
+  const minX = () => (size * depth(floor.bottom)) / 2
+  const maxX = () => W - minX()
+
+  /** 그림 상자 안에서 잡는 지점. 마우스는 등껍질, 터치는 발 아래를 받친다 */
+  function grabPoint() {
+    return touchMode ? { x: size * 0.5, y: size * 0.86 } : { x: size * 0.5, y: size * 0.3 }
+  }
+  function renderHeld() {
+    const g = grabPoint()
+    turtle.style.transformOrigin = `${g.x}px ${g.y}px`
+    turtle.style.transform = `translate(${cur.x - g.x}px,${cur.y - lift - g.y}px) rotate(${theta}rad)`
+  }
+  /** 잡힌 상태에서 발끝이 있는 화면 좌표 */
+  function footFromHeld() {
+    const g = grabPoint(),
+      fx = size * 0.5 - g.x,
+      fy = size * 0.8 - g.y,
+      c = Math.cos(theta),
+      sn = Math.sin(theta)
+    return { x: cur.x + fx * c - fy * sn, y: cur.y - lift + fx * sn + fy * c }
+  }
+  /** 기울기를 포함해 발끝 위치로 놓는다 */
+  function placeRot(r) {
+    turtle.style.transformOrigin = '50% 80%'
+    turtle.style.transform = `translate(${pos[0] - size / 2}px,${pos[1] - size * 0.8}px) rotate(${r}rad)`
+  }
+  function heldLoop(t0) {
+    let last = t0
+    const frame = (t) => {
+      if (!grabbed) return
+      const dt = Math.min(0.033, (t - last) / 1000) || 0.016
+      last = t
+      // 커서를 살짝 늦게 따라간다
+      const px = cur.x
+      cur.x += (target.x - cur.x) * Math.min(1, dt * 28)
+      cur.y += (target.y - cur.y) * Math.min(1, dt * 28)
+      const v = (cur.x - px) / dt,
+        a = (v - vSm) / dt
+      vSm = v
+      aSm += (a - aSm) * Math.min(1, dt * 12)
+      lift += ((touchMode ? 46 : 0) - lift) * Math.min(1, dt * 14)
+      if (touchMode) {
+        // 손바닥 위: 움직임 반대로 살짝 기울었다 돌아온다
+        const goal = Math.min(0.35, Math.max(-0.35, -vSm * 0.00035))
+        omega += ((goal - theta) * 90 - omega * 12) * dt
+        theta += omega * dt
+      } else {
+        // 집어 들린 상태: 진자
+        const L = size * 0.36
+        omega += (-(G / L) * Math.sin(theta) - 3.2 * omega - (aSm / L) * Math.cos(theta)) * dt
+        omega = Math.min(14, Math.max(-14, omega))
+        theta = Math.min(1, Math.max(-1, theta + omega * dt))
+      }
+      renderHeld()
+      // 말풍선·타이머가 거북이를 따라오도록 발끝 위치를 같이 갱신한다
+      const f = footFromHeld()
+      pos = [f.x, f.y]
+      heldRaf = requestAnimationFrame(frame)
+    }
+    heldRaf = requestAnimationFrame(frame)
+  }
+  /** 중력으로 떨어진다. 좌우 벽에 튕기고 바닥(작업 표시줄 윗변)에 착지한다 */
+  function fall(vx, vy, w) {
+    airborne = true
+    let last = performance.now(),
+      bounced = false
+    const frame = (t) => {
+      if (grabbed) return
+      const dt = Math.min(0.033, (t - last) / 1000)
+      last = t
+      vy += G * dt
+      let [x, y] = pos
+      x += vx * dt
+      y += vy * dt
+      w += (-theta * 22 - w * 3.5) * dt
+      theta += w * dt
+      if (x < minX()) {
+        x = minX()
+        vx = -vx * 0.45
+      }
+      if (x > maxX()) {
+        x = maxX()
+        vx = -vx * 0.45
+      }
+      if (y >= floor.bottom) {
+        y = floor.bottom
+        pos = [x, y]
+        if (!bounced && vy > 520) {
+          bounced = true
+          vy = -vy * 0.22
+          vx *= 0.5
+          land(true)
+        } else {
+          theta = 0
+          place()
+          land(false)
+          return
+        }
+      } else pos = [x, y]
+      placeRot(theta)
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+  }
+  function land(bounce) {
+    const k = bounce ? 0.6 : 1
+    hop.animate(
+      [
+        { transform: 'scale(1,1)' },
+        {
+          transform: `translateY(${3 * k}px) scale(${1 + 0.16 * k},${1 - 0.2 * k})`,
+          offset: 0.3
+        },
+        { transform: `scale(${1 - 0.04 * k},${1 + 0.05 * k})`, offset: 0.65 },
+        { transform: 'scale(1,1)' }
+      ],
+      { duration: bounce ? 260 : 380, easing: 'ease-out' }
+    )
+    if (bounce) return
+    // 착지해도 머리를 털기 전까지는 눈을 감은 채
+    turtle.classList.add('eyesclosing', 'eyesclosed')
+    turtle.classList.remove('falling')
+    turtle.classList.add('idle')
+    setTimeout(() => {
+      airborne = false
+      landed = true
+    }, 300)
+  }
+  /** 잡을 수 있는가. 목이 조금이라도 나와 있으면 못 잡는다 */
+  function canGrab() {
+    return !reduce && !grabbed && !airborne && state === 'normal' && !longView
+  }
+  function startGrab(clientX, clientY, pointerType) {
+    if (!canGrab()) return false
+    touchMode = pointerType !== 'mouse'
+    grabbed = true
+    landed = false
+    turtle.classList.remove('walk', 'idle', 'shake', 'eyesclosed', 'eyesclosing')
+    turtle.classList.add('held')
+    show('front') // 들리는 순간 정면으로 화들짝
+    hop.animate(
+      [
+        { transform: 'scale(.9,1.12)' },
+        { transform: 'scale(1.04,.96)', offset: 0.5 },
+        { transform: 'scale(1,1)' }
+      ],
+      { duration: 260, easing: 'ease-out' }
+    )
+    const g = grabPoint()
+    cur = { x: pos[0] - size * 0.5 + g.x, y: pos[1] - size * 0.8 + g.y }
+    target = { x: clientX, y: clientY }
+    theta = 0
+    omega = 0
+    vSm = 0
+    aSm = 0
+    lift = 0
+    hist = [{ x: clientX, y: clientY, t: performance.now() }]
+    heldLoop(performance.now())
+    return true
+  }
+  function moveGrab(clientX, clientY) {
+    if (!grabbed) return
+    target = { x: Math.min(W, Math.max(0, clientX)), y: Math.min(H, Math.max(0, clientY)) }
+    hist.push({ x: clientX, y: clientY, t: performance.now() })
+    while (hist.length > 6) hist.shift()
+  }
+  /** 놓는다. 최근 포인터 움직임으로 던지는 속도를 낸다 */
+  function endGrab(throwIt = true) {
+    if (!grabbed) return
+    grabbed = false
+    if (heldRaf !== null) cancelAnimationFrame(heldRaf)
+    heldRaf = null
+    let vx = 0,
+      vy = 0
+    if (throwIt && hist.length > 1) {
+      const now = performance.now()
+      const old = hist.find((h) => now - h.t < 90) ?? hist[0]
+      const dt = Math.max(16, now - old.t) / 1000
+      const last = hist[hist.length - 1]
+      vx = Math.min(1800, Math.max(-1800, (last.x - old.x) / dt))
+      vy = Math.min(1400, Math.max(-1800, (last.y - old.y) / dt))
+    }
+    const f = footFromHeld()
+    pos = [f.x, f.y]
+    turtle.classList.remove('held')
+    turtle.classList.add('falling')
+    fall(vx, vy, omega)
+  }
+
   async function walkTo(tx, ty) {
     ;[tx, ty] = clampPos(tx, ty)
     await turnTo(headingFor(tx - pos[0], ty - pos[1]))
@@ -177,7 +394,7 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
     let lastT = performance.now()
     await new Promise((res) => {
       function frame(t) {
-        if (override || longReq || cmd) {
+        if (override || longReq || cmd || busy()) {
           res()
           return
         }
@@ -862,7 +1079,7 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
   }
   const nap = async (ms) => {
     const t0 = performance.now()
-    while (performance.now() - t0 < ms && !longReq && !override && !cmd) await sleep(40)
+    while (performance.now() - t0 < ms && !longReq && !override && !cmd && !busy()) await sleep(40)
   }
   /* 정면을 보고 눈을 감은 채 머리를 좌우로 털기 */
   async function shakeHead() {
@@ -991,6 +1208,10 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
   async function life() {
     await nap(900)
     while (alive) {
+      if (busy()) {
+        await sleep(50)
+        continue
+      }
       if (longReq) {
         longReq = false
         await enterLong()
@@ -998,6 +1219,13 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
         unlongReq = false
         await exitLong()
         if (!cmd) await nap(700)
+        continue
+      }
+      if (landed) {
+        // 떨어진 직후: 머리를 털어낸다
+        landed = false
+        await shakeHead()
+        await nap(rand(600, 1200))
         continue
       }
       if (cmd) {
@@ -1074,6 +1302,8 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
   let neckWanted = 0
 
   function applyNeck() {
+    // 자세 피드백이 잡기보다 우선이다 → 잡고 있는 중에 나빠지면 손에서 놓는다
+    if (neckWanted > 0.01 && grabbed) endGrab(false)
     if (neckWanted > 0.01) {
       if (state === 'normal') {
         longReq = true
@@ -1104,13 +1334,26 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
       neckWanted = Math.max(0, ratio)
       applyNeck()
     },
-    /** 혼자 돌아다닐지 */
-    dragTo(x) {
-      // 끌고 있는 동안과 그 직후에는 혼자 걸어가지 않게 한다
+    /** 지금 잡을 수 있는가 (목이 들어가 있고 땅에 있을 때만) */
+    canGrab,
+    isHeld() {
+      return grabbed
+    },
+    /** 잡는다. 잡혔으면 true */
+    grab(clientX, clientY, pointerType = 'mouse') {
+      const ok = startGrab(clientX, clientY, pointerType)
+      if (ok) {
+        override = null
+        manualUntil = performance.now() + 1500
+      }
+      return ok
+    },
+    /** 끌기 */
+    moveGrab,
+    /** 놓는다 (최근 움직임으로 던진다) */
+    release() {
+      endGrab(true)
       manualUntil = performance.now() + 1500
-      override = null
-      pos = clampPos(x, pos[1])
-      place()
     },
     setWander(on) {
       auto = !!on

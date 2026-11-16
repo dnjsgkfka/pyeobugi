@@ -156,8 +156,9 @@ export default function Overlay(): React.JSX.Element {
   }, [bubble])
 
   /*
-   * 거북이를 끌어서 옮긴다 (가로만 — 작업 표시줄 위에 붙어 있으니 x 만 바꾼다).
+   * 거북이를 잡아서 옮긴다. 놓으면 던져진 만큼 날아가 바닥으로 떨어진다.
    * 오버레이는 평소 클릭이 통과하므로, 마우스가 거북이 위에 있는 동안만 클릭을 받는다.
+   * 목이 늘어나 있는 동안에는 잡히지 않는다 (자세 피드백이 우선).
    */
   useEffect(() => {
     if (!turtleOn) return
@@ -178,12 +179,24 @@ export default function Overlay(): React.JSX.Element {
       window.api.posture.setClickable(on || bubbleClickable.current)
     }
 
+    const stopDragging = (): void => {
+      dragging = false
+      over = false
+      document.body.style.cursor = ''
+      setClickable(false)
+    }
+
     const onMove = (event: MouseEvent): void => {
       if (dragging) {
-        turtle.current?.dragTo(event.clientX)
+        // 잡고 있는 중에 자세가 나빠지면 거북이가 스스로 손에서 떨어진다
+        if (turtle.current?.isHeld() !== true) {
+          stopDragging()
+          return
+        }
+        turtle.current.moveGrab(event.clientX, event.clientY)
         return
       }
-      const next = onTurtle(event)
+      const next = onTurtle(event) && turtle.current?.canGrab() === true
       if (next === over) return
       over = next
       document.body.style.cursor = next ? 'grab' : ''
@@ -192,15 +205,15 @@ export default function Overlay(): React.JSX.Element {
 
     const onDown = (event: MouseEvent): void => {
       if (!onTurtle(event)) return
+      if (turtle.current?.grab(event.clientX, event.clientY, 'mouse') !== true) return
       dragging = true
       document.body.style.cursor = 'grabbing'
-      turtle.current?.dragTo(event.clientX)
     }
 
     const onUp = (): void => {
       if (!dragging) return
-      dragging = false
-      document.body.style.cursor = over ? 'grab' : ''
+      turtle.current?.release()
+      stopDragging()
     }
 
     window.addEventListener('mousemove', onMove)
