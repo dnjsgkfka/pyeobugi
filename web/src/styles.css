@@ -1,0 +1,175 @@
+/* 데스크톱 앱과 같은 토큰·인트로 스타일을 그대로 쓴다 (복사본을 만들지 않는다) */
+@import '../../src/renderer/styles/tokens.css';
+@import '../../src/renderer/app/screens/onboarding/intro.css';
+/* 오버레이의 거북이 위젯 (걷기·목 늘어남) */
+@import '../../src/renderer/overlay/turtle.css';
+
+/*
+ * 두 파일 모두 `.turtle` 을 쓴다. 나중에 읽히는 overlay/turtle.css 가 인트로 거북이의
+ * 위치·크기를 덮어버리므로, 인트로 쪽은 id 로 다시 못박는다 (intro.css 와 같은 값).
+ */
+#turtleFront,
+#turtleBody {
+  left: 430.13px;
+  top: -4px;
+  width: 420px;
+  height: 420px;
+  transform-origin: 209.87px 75%;
+  cursor: default;
+  touch-action: auto;
+}
+
+:root {
+  /* 거북이 색. 인트로 그림(intro-stage.ts)과 같은 값이라 토큰이 아니라 여기 둔다 */
+  --turtle: #34a8a8;
+  --turtle-deep: #014a49;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--c-main1);
+  font-family: 'Pretendard Variable', var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/*
+ * 인트로의 fit() 은 1280×832 무대를 '꽉 채우기(cover)' 로 맞춘다 — 창 비율이 다르면 잘린다.
+ * #app 을 그 비율 그대로 만들어 두면 잘리지 않고 전체가 보인다 (남는 부분은 배경색).
+ */
+#app {
+  width: min(100vw, calc(100vh * 1280 / 832));
+  height: min(100vh, calc(100vw * 832 / 1280));
+}
+#frame {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── 노트북 화면 안 (Figma 152:2708) ───────────────── */
+/*
+ * 인트로는 왼쪽·위 정렬이지만 랜딩은 가운데다.
+ * Figma 152:2708 — 화면 안쪽 (0,0) 에서 1001×556, padding 110/64, 가로·세로 모두 center.
+ */
+#startContent {
+  left: 0;
+  top: 0;
+  width: 998px;
+  height: 556px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.accent {
+  color: var(--c-main3);
+}
+.downloads {
+  display: flex;
+  gap: 16px;
+  width: 330px;
+}
+.downloads .btn {
+  flex: 1;
+  white-space: nowrap;
+}
+.btn-muted {
+  background: var(--c-grey-300);
+  color: var(--c-grey-500);
+  font-weight: 400;
+}
+.btn:disabled {
+  cursor: default;
+}
+.btn-primary:disabled:hover {
+  filter: none;
+}
+
+/* ── 거북이 위젯 ──────────────────────────────────
+   노트북 윗변(257px)에 발이 닿도록 landing.ts 가 top 을 잡는다 */
+/* 화면 안 거북이. 노트북 화면 안쪽(141,275 ~ 1139,832)에서 잘린다 */
+#petScreen {
+  position: absolute;
+  left: 141px;
+  top: 275px;
+  width: 998px;
+  height: 557px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+#petScreen.on {
+  opacity: 1;
+}
+/*
+ * Figma 의 image 110693 / 110694. 한 장(turtle-neck.png)을 두 번 잘라 쓴다.
+ * 크롭은 Figma cropTransform 을 그대로 환산했다 (배경 크기 ≒ 571×713).
+ * 자리는 콘텐츠 프레임 기준 (24,0) 220×640 / (717,0) 284×713.
+ */
+.neck-img {
+  position: absolute;
+  top: 0;
+  background-repeat: no-repeat;
+}
+.neck-body {
+  /* Figma 는 24 인데 화면 가장자리에 너무 붙어 보여 조금 안쪽으로 옮겼다 */
+  left: 44px;
+  /* 목이 안쪽(오른쪽)으로 휘도록 뒤집는다 */
+  transform: scaleX(-1);
+  width: 220px;
+  height: 640px;
+  background-size: 570.7px 713.4px;
+  background-position: -350.7px -73.2px;
+}
+.neck-head {
+  left: 717px;
+  width: 284px;
+  height: 713px;
+  background-size: 571.4px 713.4px;
+  background-position: 0 -0.2px;
+}
+/* ── 말풍선 (Figma Feedback/Speech Bubble) ───────────── */
+#petBubble {
+  position: absolute;
+  /* Figma Feedback/Speech Bubble — 콘텐츠 프레임 기준 (717,72) → 무대 기준 */
+  left: 856px;
+  top: 346px;
+  width: max-content;
+  max-width: 200px;
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+  background: var(--c-white);
+  color: var(--c-main1);
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 400;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+#petBubble.on {
+  opacity: 1;
+}
+#petBubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -14px;
+  width: 12px;
+  height: 16px;
+  background: var(--c-white);
+  transform: translateX(-50%);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
