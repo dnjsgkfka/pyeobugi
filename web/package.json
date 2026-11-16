@@ -1,0 +1,17 @@
+{
+  "name": "pyeobugi-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "펴부기 랜딩 페이지",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7"
+  }
+}
