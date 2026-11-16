@@ -92,7 +92,11 @@ export function registerPostureIpc(): void {
     // 사용 시간 집계. occurredAt 은 구간이 끝난 시각이어야 한다.
     // 나쁜 자세 시간은 BAD 인 동안만 센다 — RECOVERING 은 전이가 시작 시점으로
     // 소급되므로 여기서 세면 중복이 된다.
-    for (const segment of usage.update(now, { face: sample.face, bad })) {
+    for (const segment of usage.update(now, {
+      face: sample.face,
+      bad,
+      mild: update.severity === 'MILD'
+    })) {
       getQueue().enqueue(buildEvent('USAGE_SEGMENT', segment, new Date(segment.endedAt)))
     }
 
