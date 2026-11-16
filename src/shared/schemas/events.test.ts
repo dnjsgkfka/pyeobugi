@@ -119,6 +119,28 @@ describe('이벤트 스키마', () => {
 
     it('정상 구간', () => expect(code(seg(valid))).toBe('OK'))
 
+    describe('mildDurationSec', () => {
+      it('생략해도 된다', () => expect(code(seg(valid))).toBe('OK'))
+
+      it('0 ~ badDurationSec 이면 통과', () => {
+        expect(code(seg({ ...valid, mildDurationSec: 0 }))).toBe('OK')
+        expect(code(seg({ ...valid, mildDurationSec: 12 }))).toBe('OK')
+      })
+
+      it('badDurationSec 보다 크면 거부', () => {
+        expect(code(seg({ ...valid, mildDurationSec: 13 }))).toBe('INVALID_PAYLOAD')
+      })
+
+      // 서버는 null 을 거절한다 (생략은 허용)
+      it('null 이면 거부', () => {
+        expect(code(seg({ ...valid, mildDurationSec: null }))).toBe('INVALID_PAYLOAD')
+      })
+
+      it('소수면 거부', () => {
+        expect(code(seg({ ...valid, mildDurationSec: 1.5 }))).toBe('INVALID_PAYLOAD')
+      })
+    })
+
     it('badDurationSec > durationSec 이면 거부', () => {
       expect(code(seg({ ...valid, badDurationSec: 61 }))).toBe('INVALID_PAYLOAD')
     })
