@@ -69,12 +69,12 @@ export function registerPostureIpc(): void {
     const update = raw as DetectionUpdate
     if (!update?.feedback || !update.sample) return
 
-    const { sample, feedback, distance } = update
+    const { sample, feedback, distance, badCandidateSince } = update
 
     // 판정과 무관하게 원시 샘플은 app 창으로 넘긴다 (개발 화면에서 쓴다)
     getWindow('app')?.webContents.send(IPC.POSTURE_SAMPLE, sample)
 
-    const view: PostureView = { feedback, distance }
+    const view: PostureView = { feedback, distance, badCandidateSince }
     // 기준 잡기처럼 카메라만 켜 둔 상태에서는 기록하지 않는다.
     // app 창에는 보낸다 (얼굴이 보이는지 알아야 버튼을 띄울 수 있다).
     if (!isSessionRunning()) {
@@ -95,7 +95,7 @@ export function registerPostureIpc(): void {
     for (const segment of usage.update(now, {
       face: sample.face,
       bad,
-      mild: update.severity === 'MILD'
+      mild: feedback.severity === 'MILD'
     })) {
       getQueue().enqueue(buildEvent('USAGE_SEGMENT', segment, new Date(segment.endedAt)))
     }

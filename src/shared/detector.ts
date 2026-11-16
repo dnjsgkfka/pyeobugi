@@ -3,7 +3,7 @@ import type { CalibrationResult } from './ai/calibration'
 import type { DistanceState } from './ai/distance'
 import type { Transition } from './ai/engine'
 import type { PostureFeedback } from './ai/feedback'
-import type { Baseline, Severity } from './ai/score'
+import type { Baseline } from './ai/score'
 
 /** detector 창 → main → app 창으로 오가는 자세 샘플. 서버로는 절대 보내지 않는다. */
 export const PostureSampleSchema = z.strictObject({
@@ -55,11 +55,11 @@ export interface DetectionUpdate {
   /** 다음 추론까지의 간격 (적응형: 평소 1초 / 바뀌는 중 0.25초 / 자리비움 3초) */
   intervalMs: number
   /**
-   * 지금 나쁜 자세가 얼마나 심한가. 나쁜 자세가 아니면 null.
-   * `BAD_ENTER` 의 severity(확정까지 가장 심했던 정도)와 달리 이 값은 '현재' 기준이고,
-   * 사용 구간의 `mildDurationSec` 를 세는 데만 쓴다.
+   * 점수가 진입선을 넘은 시각 (= 거북목 후보가 된 순간). 아니면 null.
+   * 확정(`BAD_ENTER`)은 여기서 3초 뒤다. 교정 강도에 따라 목이 늘어나기 시작하는
+   * 시점을 이 시각에서 앞당기는 데 쓴다 — 이벤트 타이밍은 바꾸지 않는다.
    */
-  severity: Severity | null
+  badCandidateSince: number | null
 }
 
 /** 얼굴 위에 찍는 점 (BlazeFace 키포인트 6개와 네모). 좌표는 0~1 비율 */

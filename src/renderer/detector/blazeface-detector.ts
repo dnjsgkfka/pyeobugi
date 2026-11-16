@@ -17,7 +17,7 @@ import {
   type Transition
 } from '@shared/ai/engine'
 import { initialFeedback, updateFeedback, type PostureFeedback } from '@shared/ai/feedback'
-import { severityOf, type Baseline } from '@shared/ai/score'
+import type { Baseline } from '@shared/ai/score'
 import type {
   CalibrationPhase,
   DetectionUpdate,
@@ -171,8 +171,9 @@ export function createBlazeFaceDetector(): PostureDetector {
       distance,
       transitions,
       intervalMs,
-      // 나쁜 자세 시간을 '살짝 숙임'과 거북목으로 나누는 데 쓴다 (서버로는 시간만 간다)
-      severity: engine.bad ? severityOf(engine.score) : null
+      // 확정 전부터 목이 늘어날 수 있게 '후보가 된 시각' 을 함께 넘긴다.
+      // engine.pendingSince 는 BAD 중에는 복귀 타이머로 쓰이므로 그때는 넘기지 않는다
+      badCandidateSince: engine.bad ? null : engine.pendingSince
     }
     updateListeners.forEach((listener) => listener(update))
     timer = setTimeout(loop, intervalMs)
