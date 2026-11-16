@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { BubblePicker, STRETCH_EVERY_MS, type Bubble } from '@shared/bubble'
 import type { PostureView } from '@shared/ipc'
-import { moodFrom, neckSince } from '@shared/pet'
+import { moodFrom, neckFrom } from '@shared/pet'
 import { formatRemaining, type PomodoroState } from '@shared/pomodoro'
+import { DEFAULT_SETTINGS, type Sensitivity } from '@shared/schemas/settings'
 import { SpeechBubble } from '@renderer/ui/SpeechBubble'
 import './turtle.css'
 import { runTurtle, type TurtleHandle } from './turtle-animation'
@@ -17,8 +18,14 @@ export default function Overlay(): React.JSX.Element {
   const stage = useRef<HTMLDivElement>(null)
   const turtle = useRef<TurtleHandle | null>(null)
   const posture = useRef<PostureView | null>(null)
-  /** 거북목으로 확정된 시각 (우리 시계). 목 길이는 여기서부터 잰다 */
-  const badStartedAt = useRef<number | null>(null)
+  /**
+   * 점수가 진입선을 넘은 시각 (우리 시계). 목 길이는 여기서부터 잰다.
+   * 확정(BAD)되면 엔진이 이 값을 복귀 타이머로 돌려쓰므로 더 보내 주지 않는다 →
+   * 후보로 처음 본 값을 자세가 돌아올 때까지 붙잡아 둔다.
+   */
+  const badCandidateAt = useRef<number | null>(null)
+  /** 교정 강도 (목이 늘어나기 시작하는 시점이 달라진다) */
+  const sensitivity = useRef<Sensitivity>(DEFAULT_SETTINGS.sensitivity)
 
   const picker = useRef(new BubblePicker())
   /** 이미 본 종료 이벤트 id — 한 번만 축하한다 */
@@ -56,10 +63,12 @@ export default function Overlay(): React.JSX.Element {
     void window.api.settings.get().then((settings) => {
       setTurtleOn(settings.features.overlay)
       stretchOn.current = settings.features.stretch
+      sensitivity.current = settings.sensitivity
     })
     const offSettings = window.api.settings.onChange((settings) => {
       setTurtleOn(settings.features.overlay)
       stretchOn.current = settings.features.stretch
+      sensitivity.current = settings.sensitivity
       if (!settings.features.overlay) picker.current.reset()
     })
 
@@ -119,13 +128,15 @@ export default function Overlay(): React.JSX.Element {
       const now = Date.now()
       const feedback = posture.current?.feedback ?? null
       const mood = moodFrom(feedback)
-      if (mood === 'bad') badStartedAt.current ??= now
-      else badStartedAt.current = null
-      // 거북목이면 확정된 순간부터 지금까지로 계산한다 — 매 프레임 조금씩 늘어난다.
+      // 후보(PENDING_BAD)로 처음 본 시각을 붙잡아 두고, 확정(BAD)까지 그대로 쓴다.
+      // RECOVERING·GOOD 으로 돌아오면 버린다 (목이 줄어든다)
+      const pending = feedback?.phase === 'PENDING_BAD'
+      if (pending || mood === 'bad') {
+        badCandidateAt.current ??= posture.current?.badCandidateSince ?? now
+      } else badCandidateAt.current = null
+      // 교정 강도에 따라 늘어나기 시작하는 시점만 앞당긴다 (엄격 즉시 / 보통 1.5초 / 느슨 3초).
       // 자세가 돌아오면 0 을 주고, 줄어드는 모습은 그림 쪽 애니메이션(최대 1.5초)에 맡긴다
-      turtle.current?.setNeck(
-        badStartedAt.current === null ? 0 : neckSince(badStartedAt.current, now)
-      )
+      turtle.current?.setNeck(neckFrom(badCandidateAt.current, sensitivity.current, now))
 
       // 스트레칭 안내: 감지 중이고 설정에서 켜 둔 경우만
       if (detecting.current && stretchOn.current && now - stretchAt.current >= STRETCH_EVERY_MS) {

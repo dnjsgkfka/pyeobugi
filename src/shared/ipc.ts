@@ -16,6 +16,8 @@ import type { PomodoroState } from './pomodoro'
 export interface PostureView {
   feedback: PostureFeedback
   distance: DistanceState
+  /** 점수가 진입선을 넘은 시각. 교정 강도에 따라 목이 늘어나기 시작하는 기준이다 */
+  badCandidateSince: number | null
 }
 
 /** 감지가 돌아간 시간 */

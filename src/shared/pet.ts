@@ -1,4 +1,6 @@
+import { TIMING } from './ai/engine'
 import type { PostureFeedback } from './ai/feedback'
+import type { Sensitivity } from './schemas/settings'
 
 /** 거북이가 보여 줄 상태. 우선순위: 자리비움 > 나쁨 > 좋음 */
 export type PetMood = 'away' | 'bad' | 'good'
@@ -29,12 +31,35 @@ export function moodFrom(posture: PostureFeedback | null): PetMood {
 }
 
 /**
- * 거북목으로 확정된 시각부터 목 길이를 구한다.
- * 엔진의 `badSince` 는 확정 3초 전(진입 대기 시작)으로 소급된 값이라 그대로 쓰면
- * 확정되는 순간 세 칸쯤에서 시작해 목이 튀어나간다.
+ * 교정 강도별로, 거북목 후보가 된 뒤 목이 늘어나기 시작할 때까지 기다리는 시간.
+ *
+ * 엔진은 후보가 된 지 `enterAfterMs`(3초) 뒤에 나쁜 자세로 확정한다. 그 타이밍은
+ * AI·BE 와 맞춘 값이라 건드리지 않고(이벤트는 그대로 3초), **화면 피드백만** 앞당긴다.
+ * - 2 엄격하게: 즉시
+ * - 1 보통: 절반(1.5초)
+ * - 0 느슨하게: 확정과 같은 시점(3초) — 기존 동작
+ */
+export const NECK_START_DELAY_MS: Record<Sensitivity, number> = {
+  0: TIMING.enterAfterMs,
+  1: Math.round(TIMING.enterAfterMs / 2),
+  2: 0
+}
+
+/**
+ * 목 길이를 구한다. `candidateSince` 는 점수가 진입선을 넘은 시각이다.
+ *
  * 추론은 1초에 한 번뿐이지만 이 값은 지금 시각으로 계산하므로 매 프레임 조금씩 늘어난다
  * (판정 결과가 올 때마다 맞추면 1초마다 한 칸씩 뛰어서 계단처럼 보인다).
+ * 엔진의 `badSince` 를 쓰지 않는 이유: 확정 3초 전으로 소급된 값이라 그대로 쓰면
+ * 확정되는 순간 세 칸쯤에서 시작해 목이 튀어나간다.
  */
-export function neckSince(badSince: number, now: number): number {
-  return Math.min(NECK_MAX, Math.max(0, now - badSince) / NECK_GROW_MS)
+export function neckFrom(
+  candidateSince: number | null,
+  sensitivity: Sensitivity,
+  now: number
+): number {
+  if (candidateSince === null) return 0
+  const startAt = candidateSince + NECK_START_DELAY_MS[sensitivity]
+  if (now <= startAt) return 0
+  return Math.min(NECK_MAX, (now - startAt) / NECK_GROW_MS)
 }
