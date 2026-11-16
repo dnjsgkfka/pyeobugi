@@ -27,7 +27,12 @@ const usageSegmentPayload = z.strictObject({
   startedAt: kstIso,
   endedAt: kstIso,
   durationSec: z.number().int().min(0).max(3600),
-  badDurationSec: z.number().int().min(0)
+  badDurationSec: z.number().int().min(0),
+  /**
+   * 선택 필드. 서버는 `null` 을 거절하고 생략은 허용한다
+   * → 값이 없으면 키를 아예 빼야 한다 (`.optional()`, `.nullable()` 아님).
+   */
+  mildDurationSec: z.number().int().min(0).optional()
 })
 
 export const BUBBLE_TYPES = ['POSTURE', 'STRETCH', 'TIMER_BREAK', 'ENCOURAGE', 'GREETING'] as const
@@ -40,13 +45,16 @@ const usageSegment = z
     payload: usageSegmentPayload
   })
   .superRefine((event, ctx) => {
-    const { startedAt, endedAt, durationSec, badDurationSec } = event.payload
+    const { startedAt, endedAt, durationSec, badDurationSec, mildDurationSec } = event.payload
     const start = Date.parse(startedAt)
     const end = Date.parse(endedAt)
     const issue = (message: string): void =>
       ctx.addIssue({ code: 'custom', message, path: ['payload'] })
 
     if (badDurationSec > durationSec) issue('badDurationSec 가 durationSec 보다 클 수 없어요')
+    if (mildDurationSec !== undefined && mildDurationSec > badDurationSec) {
+      issue('mildDurationSec 가 badDurationSec 보다 클 수 없어요')
+    }
     if (!(start < end)) issue('startedAt 은 endedAt 보다 앞이어야 해요')
     else {
       const sameDay = kstDateString(new Date(start)) === kstDateString(new Date(end))

@@ -19,13 +19,13 @@ class Clock {
   ) {}
 
   /** ms 만큼 시간을 보낸다. 지금 시각에서 한 번 넣고, step 간격으로 이어 넣는다 */
-  run(ms: number, input: { face?: boolean; bad?: boolean } = {}): this {
-    const { face = true, bad = false } = input
+  run(ms: number, input: { face?: boolean; bad?: boolean; mild?: boolean } = {}): this {
+    const { face = true, bad = false, mild = false } = input
     const until = this.now + ms
-    this.segments.push(...this.tracker.update(this.now, { face, bad }))
+    this.segments.push(...this.tracker.update(this.now, { face, bad, mild }))
     while (this.now < until) {
       this.now = Math.min(this.now + this.stepMs, until)
-      this.segments.push(...this.tracker.update(this.now, { face, bad }))
+      this.segments.push(...this.tracker.update(this.now, { face, bad, mild }))
     }
     return this
   }
@@ -44,6 +44,8 @@ const total = (segments: UsageSegment[]): number =>
   segments.reduce((sum, s) => sum + s.durationSec, 0)
 const totalBad = (segments: UsageSegment[]): number =>
   segments.reduce((sum, s) => sum + s.badDurationSec, 0)
+const totalMild = (segments: UsageSegment[]): number =>
+  segments.reduce((sum, s) => sum + s.mildDurationSec, 0)
 
 /** 서버가 받는 그대로 검증한다 */
 function asEvent(segment: UsageSegment): unknown {
@@ -80,6 +82,49 @@ describe('UsageTracker', () => {
     expect(c.segments).toHaveLength(1)
     expect(c.segments[0].durationSec).toBe(60)
     expect(c.segments[0].badDurationSec).toBe(15)
+  })
+
+  describe('살짝 숙임 (mildDurationSec)', () => {
+    it('MILD 인 동안만 쌓인다', () => {
+      const c = clock()
+        .run(30 * SECOND)
+        .run(20 * SECOND, { bad: true, mild: true })
+        .run(10 * SECOND, { bad: true })
+        .flush()
+      expect(totalBad(c.segments)).toBe(30)
+      expect(totalMild(c.segments)).toBe(20)
+    })
+
+    it('나쁜 자세가 아니면 mild 를 넣어도 세지 않는다', () => {
+      const c = clock().run(1 * MINUTE, { mild: true }).flush()
+      expect(totalMild(c.segments)).toBe(0)
+    })
+
+    it('나쁜 자세가 없으면 0 이다 (키를 빼지 않는다)', () => {
+      const c = clock().run(1 * MINUTE).flush()
+      expect(c.segments[0].mildDurationSec).toBe(0)
+    })
+
+    it('항상 badDurationSec 이하다', () => {
+      const c = clock()
+        .run(90 * SECOND, { bad: true, mild: true })
+        .run(90 * SECOND, { bad: true })
+        .flush()
+      for (const segment of c.segments) {
+        expect(segment.mildDurationSec).toBeLessThanOrEqual(segment.badDurationSec)
+      }
+    })
+
+    it('자정에서 나눌 때도 bad 와 함께 비례 배분된다', () => {
+      const c = new Clock(new UsageTracker({ segmentMs: 10 * MINUTE }), SECOND)
+      c.now = Date.parse('2026-10-27T23:59:00+09:00')
+      c.run(2 * MINUTE, { bad: true, mild: true }).flush()
+      expect(c.segments.length).toBe(2)
+      expect(totalMild(c.segments)).toBe(totalBad(c.segments))
+      for (const segment of c.segments) {
+        expect(segment.mildDurationSec).toBeLessThanOrEqual(segment.badDurationSec)
+      }
+    })
   })
 
   it('멈출 때 남은 구간을 마감한다', () => {

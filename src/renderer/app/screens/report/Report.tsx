@@ -14,7 +14,8 @@ import { kstDateString } from '@shared/time'
 
 /**
  * 자세 분포. Swagger 의 distribution(상태별 초) 을 그대로 쓴다.
- * 실서버가 아직 `mildSeconds: null` 을 보내는 경우가 있어 없는 값은 0 으로 본다.
+ * 지난 실서버 응답에 `mildSeconds: null` 이 있었어서 없는 값은 0 으로 본다
+ * (서버에서 0 으로 고쳐졌지만 방어는 남겨 둔다).
  */
 function donutSlices(distribution: NonNullable<ReportSummary['distribution']>): DonutSlice[] {
   return [
@@ -25,7 +26,7 @@ function donutSlices(distribution: NonNullable<ReportSummary['distribution']>): 
       stroke: '--c-main4'
     },
     {
-      label: '주의',
+      label: '살짝 숙임',
       seconds: distribution.mildSeconds ?? 0,
       tone: 'bg-main3',
       stroke: '--c-main3'

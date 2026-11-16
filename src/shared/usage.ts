@@ -6,6 +6,12 @@ export interface UsageSegment {
   endedAt: string
   durationSec: number
   badDurationSec: number
+  /**
+   * 나쁜 자세 시간 중 '살짝 숙임'(MILD) 이었던 시간.
+   * 서버가 `badDurationSec - mildDurationSec` 를 거북목으로 집계한다.
+   * 보내지 않으면 나쁜 자세 전부가 거북목이 되므로 항상 보낸다 (0 포함).
+   */
+  mildDurationSec: number
 }
 
 export interface UsageOptions {
@@ -28,6 +34,8 @@ export interface UsageInput {
   face: boolean
   /** 나쁜 자세로 확정된 상태인가 */
   bad: boolean
+  /** 그 나쁜 자세가 '살짝 숙임'(MILD) 인가. `bad` 가 아니면 무시한다 */
+  mild?: boolean
 }
 
 const SECOND = 1000
@@ -49,6 +57,8 @@ export class UsageTracker {
   private startedAt: number | null = null
   private lastAt = 0
   private badMs = 0
+  /** badMs 의 일부 (MILD 였던 시간) */
+  private mildMs = 0
   /** 얼굴이 안 보이기 시작한 시각. 자리비움 판단에 쓴다 */
   private lostAt: number | null = null
 
@@ -91,7 +101,7 @@ export class UsageTracker {
     }
 
     this.lostAt = null
-    return this.advance(now, input.bad)
+    return this.advance(now, input.bad, input.mild === true)
   }
 
   /** 일시정지, 타이머 종료, 앱 종료 때 남은 구간을 마감한다. */
@@ -106,11 +116,12 @@ export class UsageTracker {
     this.startedAt = floorToSecond(new Date(now)).getTime()
     this.lastAt = now
     this.badMs = 0
+    this.mildMs = 0
     this.lostAt = null
   }
 
   /** `lastAt` 부터 `now` 까지를 센다. 구간 경계나 자정을 지나면 거기서 끊는다. */
-  private advance(now: number, bad: boolean): UsageSegment[] {
+  private advance(now: number, bad: boolean, mild: boolean): UsageSegment[] {
     const segments: UsageSegment[] = []
     let from = this.lastAt
 
@@ -122,16 +133,21 @@ export class UsageTracker {
       if (now < boundary) break
 
       // 미검출로 미뤄 둔 사이에 경계가 지나갔을 수 있다 → 음수가 되지 않게 한다
-      if (bad) this.badMs += Math.max(0, boundary - from)
+      const span = Math.max(0, boundary - from)
+      if (bad) this.badMs += span
+      if (bad && mild) this.mildMs += span
       const segment = this.makeSegment(this.startedAt, boundary)
       if (segment) segments.push(segment)
       // 다음 구간은 앞 구간이 끝난 자리에서 이어 시작한다
       this.startedAt = boundary
       this.badMs = 0
+      this.mildMs = 0
       from = boundary
     }
 
-    if (bad) this.badMs += Math.max(0, now - from)
+    const rest = Math.max(0, now - from)
+    if (bad) this.badMs += rest
+    if (bad && mild) this.mildMs += rest
     this.lastAt = now
     return segments
   }
@@ -141,37 +157,51 @@ export class UsageTracker {
     this.startedAt = null
     this.lostAt = null
     const badMs = this.badMs
+    const mildMs = this.mildMs
     this.badMs = 0
+    this.mildMs = 0
     if (start === null) return []
 
     // 마감하는 사이에 자정을 넘었다면 거기서 한 번 더 끊는다
     const segments: UsageSegment[] = []
     let from = start
     let remaining = badMs
+    let remainingMild = mildMs
     while (from < end) {
       const midnight = kstNextMidnight(new Date(from)).getTime()
       const to = Math.min(midnight, end)
       // 나쁜 자세 시간은 마지막 조각에 몰아넣지 않고 길이에 비례해 나눈다
-      const share = Math.round((remaining * (to - from)) / (end - from))
-      const segment = this.makeSegment(from, to, share)
+      const ratio = (to - from) / (end - from)
+      const share = Math.round(remaining * ratio)
+      const shareMild = Math.min(Math.round(remainingMild * ratio), share)
+      const segment = this.makeSegment(from, to, share, shareMild)
       if (segment) segments.push(segment)
       remaining -= share
+      remainingMild -= shareMild
       from = to
     }
     return segments
   }
 
-  private makeSegment(start: number, end: number, badMs = this.badMs): UsageSegment | null {
+  private makeSegment(
+    start: number,
+    end: number,
+    badMs = this.badMs,
+    mildMs = this.mildMs
+  ): UsageSegment | null {
     const startedAt = floorToSecond(new Date(start))
     const endedAt = floorToSecond(new Date(end))
     const durationSec = Math.round((endedAt.getTime() - startedAt.getTime()) / SECOND)
     if (durationSec < 1) return null
+    const badDurationSec = Math.min(Math.max(Math.round(badMs / SECOND), 0), durationSec)
     return {
       startedAt: toKstIso(startedAt),
       endedAt: toKstIso(endedAt),
       durationSec,
       // 밀리초로 모았다가 반올림하고, 사용 시간을 넘지 않게 맞춘다
-      badDurationSec: Math.min(Math.max(Math.round(badMs / SECOND), 0), durationSec)
+      badDurationSec,
+      // 서버가 0 <= mild <= bad 를 요구한다
+      mildDurationSec: Math.min(Math.max(Math.round(mildMs / SECOND), 0), badDurationSec)
     }
   }
 }
