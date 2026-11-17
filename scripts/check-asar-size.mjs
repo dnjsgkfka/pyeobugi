@@ -4,7 +4,8 @@ import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const LIMIT_MB = 60
-const ROOT = 'dist'
+// EBUSY 로 dist 가 잠기면 dist2, dist3 처럼 다른 폴더로 빌드한다 → 전부 본다
+const ROOTS = readdirSync('.').filter((name) => /^dist/.test(name) && statSync(name).isDirectory())
 
 function findAsar(dir) {
   let found = []
@@ -18,11 +19,12 @@ function findAsar(dir) {
 }
 
 let targets = []
-try {
-  targets = findAsar(ROOT)
-} catch {
-  console.log('[asar] dist 가 없어 건너뛴다')
-  process.exit(0)
+for (const root of ROOTS) {
+  try {
+    targets = targets.concat(findAsar(root))
+  } catch {
+    // 읽을 수 없는 폴더는 건너뛴다
+  }
 }
 if (targets.length === 0) {
   console.log('[asar] app.asar 를 찾지 못해 건너뛴다')

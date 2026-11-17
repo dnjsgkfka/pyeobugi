@@ -28,9 +28,14 @@ files:
   - '!dist*'
   - '!docs/**'
   - '!.github/**'
+  - '!*.tsbuildinfo'
   # 소스·문서·소스맵은 실행에 쓰이지 않는다
   - '!node_modules/**/{docs,src}/**'
   - '!node_modules/**/*.{map,md,ts,mts,cts}'
+# 크롬 로캘 파일은 55개 45MB 다. 쓰는 것만 남긴다
+electronLanguages:
+  - ko
+  - en-US
 asarUnpack:
   - resources/**
 win:
