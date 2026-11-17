@@ -41,6 +41,8 @@ for (const { path, bytes } of targets) {
   } else console.log(`[asar] ok  ${line}`)
 }
 if (bad) {
-  console.error('\n설치본에 들어가면 안 되는 폴더가 섞였는지 electron-builder.yml 의 files 를 보세요.')
+  console.error(
+    '\n설치본에 들어가면 안 되는 폴더가 섞였는지 electron-builder.yml 의 files 를 보세요.'
+  )
   process.exit(1)
 }
