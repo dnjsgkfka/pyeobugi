@@ -39,6 +39,10 @@ export default function Overlay(): React.JSX.Element {
   const headBox = useRef<HTMLDivElement>(null)
   /** 누를 수 있는 말풍선이 떠 있나 (클릭을 받을지 판단에 함께 쓴다) */
   const bubbleClickable = useRef(false)
+  /** 마지막으로 본 마우스 위치. 말풍선이 바뀔 때 다시 판단하는 데 쓴다 */
+  const pointer = useRef({ x: -9999, y: -9999 })
+  /** 포인터 추적 effect 가 채운다 */
+  const syncClickable = useRef<() => void>(() => {})
 
   const [bubble, setBubble] = useState<Bubble | null>(null)
   /** 거북이를 보여 줄지 (설정의 오버레이 토글) */
@@ -159,45 +163,57 @@ export default function Overlay(): React.JSX.Element {
     }
   }, [])
 
-  /* 말풍선이 바뀔 때마다: 이벤트 적재 + 누를 수 있는 동안만 클릭 받기 */
+  /* 말풍선이 바뀔 때마다 이벤트를 쌓는다. 클릭을 받을지는 아래 포인터 추적이 정한다 */
   useEffect(() => {
     if (bubble) window.api.posture.bubbleShown(bubble.event)
     bubbleClickable.current = bubble?.action === 'recalibrate'
-    if (bubbleClickable.current) window.api.posture.setClickable(true)
+    syncClickable.current()
   }, [bubble])
 
   /*
-   * 거북이를 잡아서 옮긴다. 놓으면 던져진 만큼 날아가 바닥으로 떨어진다.
-   * 오버레이는 평소 클릭이 통과하므로, 마우스가 거북이 위에 있는 동안만 클릭을 받는다.
-   * 목이 늘어나 있는 동안에는 잡히지 않는다 (자세 피드백이 우선).
+   * 오버레이는 화면 전체를 덮는 창이다. 클릭 통과를 끄면 그동안 바탕화면도, 다른 앱도
+   * 누를 수 없다. 그래서 **포인터가 실제로 거북이나 누를 수 있는 말풍선 위에 있을 때만**
+   * 끈다. "말풍선이 떠 있으면 켠다" 같은 상태 기반으로 두면 말풍선이 사라져도 그대로
+   * 남아 화면이 먹통이 된다.
+   *
+   * 평소에는 setIgnoreMouseEvents(true, { forward: true }) 라 움직임은 계속 들어온다.
    */
   useEffect(() => {
-    if (!turtleOn) return
     let over = false
     let dragging = false
 
-    const onTurtle = (event: MouseEvent): boolean => {
+    const onSomething = (x: number, y: number): boolean => {
+      // 누를 수 있는 말풍선 (거리 안내 → 기준 다시 잡기)
+      const box = bubbleClickable.current ? headBox.current?.getBoundingClientRect() : null
+      if (box && x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) return true
       const at = turtle.current?.getPos()
       if (!at) return false
-      return (
-        Math.abs(event.clientX - at.x) <= at.size * 0.6 &&
-        event.clientY >= at.y - at.size &&
-        event.clientY <= at.y + 8
-      )
+      return Math.abs(x - at.x) <= at.size * 0.6 && y >= at.y - at.size && y <= at.y + 8
     }
 
-    const setClickable = (on: boolean): void => {
-      window.api.posture.setClickable(on || bubbleClickable.current)
+    const apply = (next: boolean): void => {
+      if (next === over) return
+      over = next
+      document.body.style.cursor = next && turtle.current?.canGrab() === true ? 'grab' : ''
+      window.api.posture.setClickable(next)
+    }
+
+    // 말풍선이 생기거나 사라질 때도 같은 기준으로 다시 계산한다
+    syncClickable.current = () => {
+      if (dragging) return
+      const { x, y } = pointer.current
+      apply(onSomething(x, y))
     }
 
     const stopDragging = (): void => {
       dragging = false
-      over = false
       document.body.style.cursor = ''
-      setClickable(false)
+      over = true // 다음 apply 가 반드시 false 를 보내도록
+      apply(false)
     }
 
     const onMove = (event: MouseEvent): void => {
+      pointer.current = { x: event.clientX, y: event.clientY }
       if (dragging) {
         // 잡고 있는 중에 자세가 나빠지면 거북이가 스스로 손에서 떨어진다
         if (turtle.current?.isHeld() !== true) {
@@ -207,15 +223,10 @@ export default function Overlay(): React.JSX.Element {
         turtle.current.moveGrab(event.clientX, event.clientY)
         return
       }
-      const next = onTurtle(event) && turtle.current?.canGrab() === true
-      if (next === over) return
-      over = next
-      document.body.style.cursor = next ? 'grab' : ''
-      setClickable(next)
+      apply(onSomething(event.clientX, event.clientY))
     }
 
     const onDown = (event: MouseEvent): void => {
-      if (!onTurtle(event)) return
       if (turtle.current?.grab(event.clientX, event.clientY, 'mouse') !== true) return
       dragging = true
       document.body.style.cursor = 'grabbing'
@@ -235,9 +246,9 @@ export default function Overlay(): React.JSX.Element {
       window.removeEventListener('mousedown', onDown)
       window.removeEventListener('mouseup', onUp)
       document.body.style.cursor = ''
-      window.api.posture.setClickable(bubbleClickable.current)
+      window.api.posture.setClickable(false)
     }
-  }, [turtleOn])
+  }, [])
 
   /* 말풍선은 목을 그리는 것과 같은 박자(매 프레임)로 옮긴다. React 로 다시 그리면 툭툭 끊긴다 */
   useEffect(() => {
