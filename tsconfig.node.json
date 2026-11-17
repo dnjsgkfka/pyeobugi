@@ -1,7 +1,25 @@
+// @electron-toolkit/tsconfig 를 extends 하지 않고 옵션을 직접 적는다 (패키지 v2.0.0 과 같은 값).
+// 랜딩(web/)은 ../src/renderer 를 그대로 가져다 쓰는데, Vite 는 그 파일을 변환할 때
+// 파일 기준으로 가장 가까운 tsconfig(= 이 레포 루트)를 반드시 읽는다. 배포 환경은
+// 루트 디렉터리가 web 이라 루트의 node_modules 가 없어 extends 가 풀리지 않고 빌드가 깨졌다.
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
   "include": ["electron.vite.config.*", "vitest.config.*", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"],
   "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "sourceMap": false,
+    "strict": true,
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
     "composite": true,
     "types": ["electron-vite/node"],
     "baseUrl": ".",
