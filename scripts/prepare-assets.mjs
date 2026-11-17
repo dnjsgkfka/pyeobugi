@@ -30,6 +30,7 @@ if (existsSync(FONT_SRC)) {
 }
 
 // FilesetResolver 는 SIMD 지원 여부에 따라 vision_wasm_internal / nosimd 둘 중 하나만 쓴다.
+// nosimd(12MB)는 SSE4.1 이 없는 구형 CPU 를 위한 대체본이라 남겨 둔다.
 // module 변형(13MB)은 쓰지 않으므로 복사하지 않는다 (설치본 크기)
 const WASM_KEEP = /^vision_wasm_(internal|nosimd_internal)\.(js|wasm)$/
 
