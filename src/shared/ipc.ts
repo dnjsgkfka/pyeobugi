@@ -77,6 +77,8 @@ export const IPC = {
   DETECTION_RESET: 'detection:reset',
   /** 카메라만 끄기 (감지 중이면 무시) */
   DETECTOR_CLOSE_IF_IDLE: 'detector:close-if-idle',
+  /** detector → main: 창이 뜨고 IPC 구독까지 끝났다 (명령을 보내도 되는 시점) */
+  DETECTOR_READY: 'detector:ready',
   /** overlay → main: 말풍선을 띄웠다 (BUBBLE_SHOWN 이벤트 적재) */
   BUBBLE_SHOWN: 'bubble:shown',
   /** overlay → main: 눌러야 하는 말풍선이 떠 있는 동안만 클릭을 받는다 */
@@ -178,6 +180,7 @@ export interface PreloadApi {
     /** app 쪽: 말풍선을 눌러 기준 다시 잡기로 들어올 때 */
     onRecalibrate: (listener: () => void) => () => void
     /** detector 쪽 */
+    detectorReady: () => void
     onCommand: (listener: (command: DetectorCommand) => void) => () => void
     onCalibrateRequest: (listener: () => void) => () => void
     onPreviewRequest: (listener: (on: boolean) => void) => () => void

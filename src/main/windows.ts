@@ -1,7 +1,7 @@
-import { BrowserWindow, screen, shell } from 'electron'
+import { BrowserWindow, ipcMain, screen, shell, type IpcMainEvent } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import type { WindowName } from '@shared/ipc'
+import { IPC, type WindowName } from '@shared/ipc'
 import icon from '../../resources/icon.png?asset'
 
 const windows: Partial<Record<WindowName, BrowserWindow>> = {}
@@ -154,9 +154,47 @@ function createOverlay(): BrowserWindow {
   return win
 }
 
+/** 렌더러가 늦게 떠도 명령이 유실되지 않게, 준비 완료를 못 받으면 이 시간 뒤에 그냥 보낸다 */
+const READY_TIMEOUT_MS = 5_000
+
+let detectorReady: Promise<BrowserWindow> | null = null
+
+/**
+ * detector 창은 감지·기준 잡기 동안에만 둔다.
+ * 숨겨 두기만 해도 렌더러(wasm 포함) + 카메라 캡처 프로세스로 200MB 이상을 쓴다.
+ * 창을 막 만든 직후에는 렌더러가 아직 IPC 를 구독하지 않았으므로,
+ * DETECTOR_READY 를 받은 뒤에 명령을 보낸다.
+ */
+export function ensureDetector(): Promise<BrowserWindow> {
+  const open = windows.detector
+  if (open && !open.isDestroyed() && detectorReady) return detectorReady
+  const win = createDetector()
+  windows.detector = win
+  detectorReady = new Promise<BrowserWindow>((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer)
+      ipcMain.off(IPC.DETECTOR_READY, onReady)
+      resolve(win)
+    }
+    const onReady = (event: IpcMainEvent): void => {
+      if (event.sender === win.webContents) done()
+    }
+    const timer = setTimeout(done, READY_TIMEOUT_MS)
+    ipcMain.on(IPC.DETECTOR_READY, onReady)
+  })
+  return detectorReady
+}
+
+export function destroyDetector(): void {
+  const win = windows.detector
+  windows.detector = undefined
+  detectorReady = null
+  // hideOnClose 를 건너뛰고 실제로 없앤다 (close 는 숨기기로 가로채진다)
+  if (win && !win.isDestroyed()) win.destroy()
+}
+
 export function createWindows(): void {
   windows.app = createApp()
-  windows.detector = createDetector()
   windows.overlay = createOverlay()
 }
 

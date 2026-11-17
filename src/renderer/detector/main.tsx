@@ -16,7 +16,6 @@ detector.onCalibration((phase) => window.api.posture.sendCalibration(phase))
 const applyBaseline = (settings: Settings): void => {
   detector.setBaseline(settings.baseline && tunedBaseline(settings.baseline, settings.sensitivity))
 }
-void window.api.settings.get().then(applyBaseline)
 window.api.settings.onChange(applyBaseline)
 
 window.api.posture.onCommand((command) => {
@@ -28,3 +27,12 @@ window.api.posture.onPreviewRequest((on) => detector.setPreview(on))
 detector.onPreview((frame) => window.api.posture.sendPreviewFrame(frame))
 
 createRoot(document.getElementById('root')!).render(<div>detector</div>)
+
+// 준비 완료를 알린다. main 은 이걸 받고 나서 명령을 보낸다.
+// 창은 감지·기준 잡기 때만 만들어지므로 (1) 먼저 보낸 명령이 유실되면 안 되고,
+// (2) 기준값이 들어오기 전에 감지가 시작되면 한순간 '기준 없음' 으로 판정된다.
+// 그래서 기준을 적용한 뒤에 알린다.
+void window.api.settings.get().then((settings) => {
+  applyBaseline(settings)
+  window.api.posture.detectorReady()
+})

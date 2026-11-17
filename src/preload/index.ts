@@ -88,6 +88,7 @@ const api: PreloadApi = {
     setPreview: (on: boolean) => ipcRenderer.send(IPC.PREVIEW_SET, on),
     onPreviewFrame: (listener: (preview: PreviewFrame) => void) =>
       subscribe<PreviewFrame>(IPC.PREVIEW_FRAME, listener),
+    detectorReady: () => ipcRenderer.send(IPC.DETECTOR_READY),
     onCommand: (listener: (command: DetectorCommand) => void) =>
       subscribe<DetectorCommand>(IPC.DETECTOR_COMMAND, listener),
     bubbleShown: (bubbleType: BubbleType) => ipcRenderer.send(IPC.BUBBLE_SHOWN, bubbleType),
