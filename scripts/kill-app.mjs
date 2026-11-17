@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
 // 빌드 전에 실행 중인 앱을 끈다.
 // 앱이 떠 있으면 dist/win-unpacked/resources/app.asar 가 잠겨 electron-builder 가
 // EBUSY 로 죽는다. 이름이 바뀐 적이 있어 예전 이름도 함께 끈다.

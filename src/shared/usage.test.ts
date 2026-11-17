@@ -96,12 +96,16 @@ describe('UsageTracker', () => {
     })
 
     it('나쁜 자세가 아니면 mild 를 넣어도 세지 않는다', () => {
-      const c = clock().run(1 * MINUTE, { mild: true }).flush()
+      const c = clock()
+        .run(1 * MINUTE, { mild: true })
+        .flush()
       expect(totalMild(c.segments)).toBe(0)
     })
 
     it('나쁜 자세가 없으면 0 이다 (키를 빼지 않는다)', () => {
-      const c = clock().run(1 * MINUTE).flush()
+      const c = clock()
+        .run(1 * MINUTE)
+        .flush()
       expect(c.segments[0].mildDurationSec).toBe(0)
     })
 
