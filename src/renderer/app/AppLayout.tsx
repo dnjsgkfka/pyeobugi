@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { NavSidebar } from '@renderer/ui/NavSidebar'
 import { TitleBar } from '@renderer/ui/TitleBar'
+import { Toast } from '@renderer/ui/Toast'
+import { useToast } from '@renderer/ui/useToast'
 
 /**
  * 1280×832 화면의 기본 틀 (Figma 기준).
@@ -13,6 +15,16 @@ import { TitleBar } from '@renderer/ui/TitleBar'
  */
 export default function AppLayout(): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false)
+  const toast = useToast()
+
+  // 자리비움으로 감지가 멈추면 카메라도 꺼져 있어 돌아와도 앱이 알 수 없다 → 알려 준다
+  useEffect(
+    () =>
+      window.api.posture.onAutoStopped(() => {
+        toast.show('자리를 비우셔서 감지를 멈췄어요. 기록은 저장했어요.')
+      }),
+    [toast]
+  )
 
   return (
     <div
@@ -35,6 +47,7 @@ export default function AppLayout(): React.JSX.Element {
           <Outlet />
         </div>
       </div>
+      {toast.message && <Toast message={toast.message} onDismiss={toast.dismiss} />}
     </div>
   )
 }
