@@ -2,8 +2,9 @@ import { ipcMain, type IpcMainEvent } from 'electron'
 import type { DetectionUpdate } from '@shared/detector'
 import { IPC, type PostureView } from '@shared/ipc'
 import { UsageTracker } from '@shared/usage'
-import { isSessionRunning } from './detector'
+import { isSessionRunning, stopForAway } from './detector'
 import { buildEvent } from './events'
+import { getSettings } from './onboarding'
 import { setTrayState } from './tray'
 import { getQueue } from './queue'
 import { getWindow } from './windows'
@@ -14,6 +15,12 @@ const usage = new UsageTracker()
 let lostSince: number | null = null
 /** 자리를 비운 것으로 보는 시간. UsageTracker 의 기본값과 맞춘다 */
 const AWAY_MS = 30_000
+/**
+ * 설정의 '자리비움' 을 켰을 때, 이만큼 비우면 카메라를 끄고 감지를 멈춘다.
+ * 1분은 잠깐 자리를 뜨는 것과 구분이 안 돼서 5분으로 둔다
+ * (세션을 끝내는 동작이라 돌아오면 사용자가 다시 눌러야 한다).
+ */
+const AWAY_STOP_MS = 5 * 60_000
 
 /** detector 창이 보낸 것만 받는다 (다른 창이 흉내내지 못하게) */
 function fromDetector(event: IpcMainEvent): boolean {
@@ -84,6 +91,16 @@ export function registerPostureIpc(): void {
 
     const now = Date.now()
     const away = isAway(now, sample.face)
+    // 오래 비우면 카메라까지 끈다 (설정에서 켜 둔 경우에만)
+    if (
+      away &&
+      lostSince !== null &&
+      now - lostSince >= AWAY_STOP_MS &&
+      getSettings().value.features.awayPause
+    ) {
+      stopForAway()
+      return
+    }
     const bad = feedback.phase === 'BAD'
     setTrayState(away ? 'away' : bad ? 'bad' : 'good')
 

@@ -63,6 +63,8 @@ export const IPC = {
   /** detector → main → app: 축소한 카메라 프레임 (기기 안에서만 돈다) */
   PREVIEW_FRAME: 'preview:frame',
   CAMERA_OPEN_SETTINGS: 'camera:open-settings',
+  /** main → app: 자리비움으로 감지를 자동으로 멈췄다 */
+  DETECTION_AUTO_STOPPED: 'detection:auto-stopped',
   SETTINGS_GET: 'settings:get',
   SETTINGS_UPDATE: 'settings:update',
   /** 기준 자세 저장 + CALIBRATION_COMPLETED 이벤트 */
@@ -157,6 +159,8 @@ export interface PreloadApi {
     /** 감지 경과 시간 */
     getDetection: () => Promise<DetectionState>
     onDetection: (listener: (state: DetectionState) => void) => () => void
+    /** 자리비움으로 감지가 자동으로 멈췄을 때 */
+    onAutoStopped: (listener: () => void) => () => void
     /** 멈추고 경과 시간을 0 으로 */
     reset: () => void
     /** 자세 판정 상태 구독 */
