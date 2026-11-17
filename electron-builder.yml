@@ -41,7 +41,9 @@ asarUnpack:
 win:
   executableName: pyeobugi
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  # 버전을 빼서 파일 이름을 고정한다. 랜딩의 다운로드 버튼이
+  # releases/latest/download/pyeobugi-setup.exe 를 그대로 가리킬 수 있다
+  artifactName: ${name}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
