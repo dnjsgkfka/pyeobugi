@@ -1,10 +1,5 @@
 /**
- * 랜딩 히어로 = 온보딩 인트로의 마지막 상태(Figma "시작 화면" 152:2666).
- *
- * 배경·노트북·노치·화면·노트북 위 거북이는 `INTRO_STAGE_HTML` 그대로다.
- * 화면 안의 '목이 늘어난 거북이' 는 Figma 가 쓰는 이미지(image 110693 / 110694)를
- * 같은 크롭·같은 자리로 그대로 쓴다. 두 조각은 한 장(`assets/turtle-neck.png`)을
- * 잘라 쓰는 것이라, 크롭값은 Figma 의 cropTransform 에서 그대로 환산했다.
+ * 랜딩 히어로
  */
 import neckUrl from './assets/turtle-neck.png'
 
