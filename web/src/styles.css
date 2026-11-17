@@ -81,6 +81,10 @@ body {
   flex: 1;
   white-space: nowrap;
 }
+/* 다운로드 버튼은 링크다 (.btn 은 버튼용이라 밑줄만 지운다) */
+.downloads a.btn {
+  text-decoration: none;
+}
 .btn-muted {
   background: var(--c-grey-300);
   color: var(--c-grey-500);

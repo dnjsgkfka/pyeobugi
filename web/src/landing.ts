@@ -3,6 +3,14 @@
  */
 import neckUrl from './assets/turtle-neck.png'
 
+/**
+ * 최신 릴리스의 윈도우 설치본.
+ * 파일 이름에 버전이 없어서(electron-builder.yml 의 nsis.artifactName)
+ * 새 버전을 올려도 이 주소는 그대로다.
+ */
+const WINDOWS_DOWNLOAD =
+  'https://github.com/dnjsgkfka/pyeobugi/releases/latest/download/pyeobugi-setup.exe'
+
 /** 노트북 화면 안 내용 (Figma 152:2708) */
 const SCREEN_CONTENT = `
   <div class="intro">
@@ -13,7 +21,7 @@ const SCREEN_CONTENT = `
     </p>
   </div>
   <div class="downloads">
-    <button class="btn btn-primary" type="button" disabled>Windows용 다운로드</button>
+    <a class="btn btn-primary" href="${WINDOWS_DOWNLOAD}">Windows용 다운로드</a>
     <button class="btn btn-muted" type="button" disabled>macOS용 다운로드</button>
   </div>
   <!-- 인트로 애니메이션이 #startBtn 을 참조한다. 랜딩에서는 쓰지 않으므로 숨겨 둔다 -->
