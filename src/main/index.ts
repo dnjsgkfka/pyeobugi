@@ -14,13 +14,20 @@ import { createTray } from './tray'
 import { createWindows, showWindow } from './windows'
 
 /**
- * Windows 에서 Chromium 의 기본 캡처 경로(Media Foundation)가 카메라를 못 여는 장치가 있다
- * (AbortError: Timeout starting video source). 예전 방식(DirectShow)으로 돌린다.
- * app.whenReady() 보다 먼저 호출해야 한다.
+ * 끄는 Chromium 기능들. `app.whenReady()` 보다 먼저 호출해야 하고,
+ * `disable-features` 는 쉼표로 이어 **한 번만** 넘겨야 한다 (두 번 호출하면 하나만 적용된다).
+ *
+ * - `MediaFoundationVideoCapture` (Windows): 기본 캡처 경로가 카메라를 못 여는 장치가 있다
+ *   (AbortError: Timeout starting video source). 예전 방식(DirectShow)으로 돌린다.
+ * - `AudioServiceOutOfProcess`: 오디오를 전혀 쓰지 않는데(getUserMedia `audio: false`)
+ *   카메라를 열면 Chromium 이 오디오 서비스를 별도 프로세스로 띄워 80MB 가량을 쓴다.
+ *   브라우저 프로세스 안에서 돌게 해 그 프로세스를 없앤다.
  */
-if (process.platform === 'win32') {
-  app.commandLine.appendSwitch('disable-features', 'MediaFoundationVideoCapture')
-}
+const DISABLED_FEATURES = [
+  ...(process.platform === 'win32' ? ['MediaFoundationVideoCapture'] : []),
+  'AudioServiceOutOfProcess'
+]
+app.commandLine.appendSwitch('disable-features', DISABLED_FEATURES.join(','))
 
 // 단일 인스턴스: 두 번째 실행은 바로 종료하고, 기존 앱 창을 앞으로 가져온다.
 if (!app.requestSingleInstanceLock()) {
