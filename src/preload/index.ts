@@ -75,6 +75,8 @@ const api: PreloadApi = {
     onStatus: (listener: (status: DetectorStatus) => void) =>
       subscribe<DetectorStatus>(IPC.DETECTOR_STATUS, listener),
     getDetection: (): Promise<DetectionState> => ipcRenderer.invoke(IPC.DETECTION_GET),
+    /** 자리비움으로 감지가 자동으로 멈췄을 때 */
+    onAutoStopped: (listener: () => void) => subscribe(IPC.DETECTION_AUTO_STOPPED, listener),
     onDetection: (listener: (state: DetectionState) => void) =>
       subscribe<DetectionState>(IPC.DETECTION_STATE, listener),
     reset: () => ipcRenderer.send(IPC.DETECTION_RESET),

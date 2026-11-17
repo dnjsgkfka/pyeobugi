@@ -45,6 +45,21 @@ export function isSessionRunning(): boolean {
   return runningSince !== null
 }
 
+/**
+ * 자리비움으로 감지를 자동으로 멈춘다 (설정의 '자리비움' 을 켰을 때).
+ * 멈추기 전에 구간을 마감하므로 자리를 뜨기 전까지의 기록은 그대로 남는다
+ * (UsageTracker 가 얼굴이 사라진 시점으로 소급해 마감한다).
+ * 카메라도 끄기 때문에 돌아와도 앱이 알 수 없다 → 사용자에게 알린다.
+ */
+export function stopForAway(): void {
+  if (runningSince === null) return
+  flushUsage()
+  setTrayState('idle')
+  endSession(false)
+  getWindow('detector')?.webContents.send(IPC.DETECTOR_COMMAND, 'stop')
+  getWindow('app')?.webContents.send(IPC.DETECTION_AUTO_STOPPED)
+}
+
 function fromDetector(event: IpcMainEvent): boolean {
   return event.sender === getWindow('detector')?.webContents
 }
