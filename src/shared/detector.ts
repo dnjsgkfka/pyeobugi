@@ -72,8 +72,12 @@ export interface FaceMarks {
 
 /** 온보딩 프리뷰 한 장 */
 export interface PreviewFrame {
-  /** data:image/jpeg;base64,… */
-  frame: string
+  /**
+   * JPEG 바이트.
+   * base64 data URL 로 보내면 33% 커지고 프레임마다 거대한 문자열이 생겼다 버려진다
+   * (측정: detector 렌더러 +150MB).
+   */
+  frame: Uint8Array<ArrayBuffer>
   face: FaceMarks | null
 }
 

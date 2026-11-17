@@ -2,7 +2,7 @@ import { ipcMain, type IpcMainEvent } from 'electron'
 import type { DetectionUpdate } from '@shared/detector'
 import { IPC, type PostureView } from '@shared/ipc'
 import { UsageTracker } from '@shared/usage'
-import { isSessionRunning, stopForAway } from './detector'
+import { isSessionRunning, setWantedPreview, stopForAway } from './detector'
 import { buildEvent } from './events'
 import { getSettings } from './onboarding'
 import { setTrayState } from './tray'
@@ -128,13 +128,16 @@ export function registerPostureIpc(): void {
 
   // app → detector: 온보딩 프리뷰 켜기/끄기
   ipcMain.on(IPC.PREVIEW_SET, (_event: IpcMainEvent, on: unknown) => {
+    // 창이 아직 없을 수 있다 → 상태를 detector 쪽에 남겨 두고, 뜨면 그때 넘어간다
+    setWantedPreview(on === true)
     getWindow('detector')?.webContents.send(IPC.PREVIEW_SET, on === true)
   })
 
   // detector → app: 축소한 카메라 프레임. 저장하지도, 로그에 남기지도 않는다
   ipcMain.on(IPC.PREVIEW_FRAME, (event: IpcMainEvent, preview: unknown) => {
     if (!fromDetector(event)) return
-    if (typeof (preview as { frame?: unknown })?.frame !== 'string') return
+    // 프레임은 JPEG 바이트다 (base64 문자열이 아니다)
+    if (!((preview as { frame?: unknown })?.frame instanceof Uint8Array)) return
     getWindow('app')?.webContents.send(IPC.PREVIEW_FRAME, preview)
   })
 

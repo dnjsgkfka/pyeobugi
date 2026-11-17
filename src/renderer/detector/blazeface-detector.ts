@@ -27,14 +27,17 @@ import type {
 } from '@shared/detector'
 import { classifyCameraError } from './camera-error'
 import { closeCamera, openCamera, sizeOfStream } from './camera'
-import { createFaceDetector, detectFace } from './face-detector'
+import { createFaceDetector, detectFace, type FaceDetection } from './face-detector'
 
 /**
- * 온보딩 프리뷰 (추론과 별개로 돌린다).
+ * 온보딩 프리뷰.
  * 카메라가 주는 해상도를 그대로 보낸다 — 창 폭(1280)보다 커도 줄이지 않는다.
  * 너무 커지면 IPC 가 버거워지므로 가로 1920 에서만 자른다.
+ *
+ * 주기를 100ms 에서 150ms 로 늘렸다. 프레임을 만드는 비용(캔버스 readback + JPEG 인코딩)이
+ * 메모리의 대부분이었고, 얼굴을 맞추는 용도라 6~7fps 로도 충분하다.
  */
-const PREVIEW_MS = 100
+const PREVIEW_MS = 150
 /** 카메라를 닫고 다시 열기까지 기다리는 시간 (윈도우가 장치를 놓아주는 데 걸림) */
 const RELEASE_MS = 300
 /** 기준을 잡을 때 '방금 본 얼굴' 로 인정하는 시간 */
@@ -65,6 +68,10 @@ export function createBlazeFaceDetector(): PostureDetector {
   /** 카메라 열기 직렬화용 체인 */
   let attaching: Promise<void> = Promise.resolve()
   let running = false
+  /** JPEG 인코딩이 겹치지 않게 한 장씩만 */
+  let encoding = false
+  /** 루프가 방금 찾은 얼굴. 프리뷰가 재사용한다 (추론을 두 번 돌리지 않는다) */
+  let lastFace: FaceDetection | null = null
 
   let baseline: Baseline | null = null
   let engine: EngineState = initialEngineState
@@ -116,13 +123,16 @@ export function createBlazeFaceDetector(): PostureDetector {
   /** 다음 추론 때 함께 내보낼 전이 (기준 재설정처럼 루프 밖에서 생긴 것) */
   const pendingTransitions: Transition[] = []
 
+  const toJpeg = (canvas: HTMLCanvasElement): Promise<Blob | null> =>
+    new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', PREVIEW_QUALITY))
+
   /**
-   * 프리뷰: 추론과 별개로 돌린다. 축소한 JPEG 과 얼굴 점만 내보내고 원본 프레임은 이 창에 남는다.
-   * 온보딩에서 점이 다 보이는지 사람이 눈으로 확인해야 하므로, 프리뷰 간격마다 얼굴도 다시 찾는다
-   * (판정용 추론은 그대로 적응형 주기로 돈다).
+   * 프리뷰: JPEG 바이트와 얼굴 점만 내보내고 원본 프레임은 이 창에 남는다.
+   * 얼굴은 루프가 찾아 둔 것을 재사용한다 — 프리뷰가 켜져 있는 동안은 루프도 PREVIEW_MS 로
+   * 돌기 때문에 점이 그대로 따라온다 (예전에는 여기서 추론을 한 번 더 돌렸다).
    */
-  function sendPreview(): void {
-    if (!video || video.videoWidth === 0) return
+  async function sendPreview(): Promise<void> {
+    if (!video || video.videoWidth === 0 || encoding) return
     // 카메라가 주는 크기 그대로 (아주 큰 경우에만 줄인다)
     const scale = Math.min(1, PREVIEW_MAX_WIDTH / video.videoWidth)
     const width = Math.round(video.videoWidth * scale)
@@ -132,23 +142,34 @@ export function createBlazeFaceDetector(): PostureDetector {
       previewCanvas.width = width
       previewCanvas.height = height
     }
-    const context = previewCanvas.getContext('2d')
+    const canvas = previewCanvas
+    const context = canvas.getContext('2d')
     if (!context) return
     context.drawImage(video, 0, 0, width, height)
-    const frame = previewCanvas.toDataURL('image/jpeg', PREVIEW_QUALITY)
 
-    const found = detector ? detectFace(detector, video) : null
-    const preview: PreviewFrame = {
-      frame,
-      face: found ? { box: found.box, keypoints: found.keypoints, ok: found.sample !== null } : null
+    encoding = true
+    try {
+      const blob = await toJpeg(canvas)
+      // 기다리는 동안 멈췄을 수 있다
+      if (!blob || !running) return
+      const found = lastFace
+      const preview: PreviewFrame = {
+        frame: new Uint8Array(await blob.arrayBuffer()),
+        face: found
+          ? { box: found.box, keypoints: found.keypoints, ok: found.sample !== null }
+          : null
+      }
+      previewListeners.forEach((listener) => listener(preview))
+    } finally {
+      encoding = false
     }
-    previewListeners.forEach((listener) => listener(preview))
   }
 
   function loop(): void {
     if (!running || !detector || !video) return
     const now = Date.now()
     const found = detectFace(detector, video)
+    lastFace = found
     const face = found?.sample ?? null
 
     const transitions: Transition[] = pendingTransitions.splice(0)
@@ -159,7 +180,10 @@ export function createBlazeFaceDetector(): PostureDetector {
     feedback = updateFeedback(feedback, engine, now, baseline !== null, transitions)
     distance = stepDistance(distance, now, face?.size ?? null, baseline)
 
-    const intervalMs = nextIntervalMs(engine, now)
+    // 프리뷰가 켜져 있으면 점이 끊겨 보이지 않게 촘촘히 돈다.
+    // 추론 입력은 320px 고정이라 이 주기에서도 비용이 작다
+    const base = nextIntervalMs(engine, now)
+    const intervalMs = previewOn ? Math.min(PREVIEW_MS, base) : base
     const update: DetectionUpdate = {
       sample: {
         t: now,
@@ -241,7 +265,7 @@ export function createBlazeFaceDetector(): PostureDetector {
         return
       }
       running = true
-      if (previewOn) previewTimer ??= setInterval(sendPreview, PREVIEW_MS)
+      if (previewOn) previewTimer ??= setInterval(() => void sendPreview(), PREVIEW_MS)
       engine = initialEngineState
       feedback = initialFeedback
       distance = initialDistanceState
@@ -260,6 +284,7 @@ export function createBlazeFaceDetector(): PostureDetector {
     previewTimer = undefined
     previewCanvas = null
     previewOn = false
+    lastFace = null
     openedForPreview = false
     engine = initialEngineState
     feedback = initialFeedback
@@ -288,7 +313,7 @@ export function createBlazeFaceDetector(): PostureDetector {
     setPreview: (on) => {
       previewOn = on
       clearInterval(previewTimer)
-      previewTimer = on && running ? setInterval(sendPreview, PREVIEW_MS) : undefined
+      previewTimer = on && running ? setInterval(() => void sendPreview(), PREVIEW_MS) : undefined
       // 켜 둔 스트림의 해상도 변경을 거부하는 카메라가 있어서, 프리뷰는 다시 열어 바꾼다.
       // 아직 안 열렸으면 start() 가 이 상태를 보고 알맞게 연다
       if (!running || openedForPreview === on) return
