@@ -35,6 +35,12 @@ export async function createFaceDetector(): Promise<FaceDetector> {
 
 /** 추론에 넣는 가로폭. 카메라가 더 크게 들어와도 여기서 줄인다 */
 const INFERENCE_WIDTH = 320
+/**
+ * size 를 재는 기준 비율.
+ * size 는 '얼굴 높이 ÷ 영상 높이' 라 영상 비율이 바뀌면 같은 얼굴도 값이 달라진다.
+ * 기준 잡기(프리뷰, 16:9)와 평소 감지(320×240, 4:3)가 같은 값을 내도록 4:3 으로 환산한다.
+ */
+const REFERENCE_ASPECT = 4 / 3
 
 let frame: CanvasRenderingContext2D | null = null
 
@@ -64,9 +70,10 @@ function toSample(face: Detection, width: number, height: number): FaceSample | 
     toPixels(k, width, height)
   )
   if (!rightEye || !leftEye || !noseTip || !rightEar || !leftEar || !face.boundingBox) return null
+  // 실제 영상 높이가 아니라 4:3 기준 높이로 나눈다 (위 REFERENCE_ASPECT 참고)
   return toFaceSample(
     { rightEye, leftEye, noseTip, rightEar, leftEar },
-    face.boundingBox.height / height
+    face.boundingBox.height / (width / REFERENCE_ASPECT)
   )
 }
 
