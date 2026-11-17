@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { DetectorStatus } from '@shared/detector'
 import { Button } from '@renderer/ui/Button'
+import { Dialog } from '@renderer/ui/Dialog'
 import { Spinner } from '@renderer/ui/Spinner'
 import { OnboardingHeader } from './OnboardingHeader'
 
@@ -45,6 +46,8 @@ function copyFor(status: DetectorStatus): Copy {
 
 export default function Permission(): React.JSX.Element {
   const [status, setStatus] = useState<DetectorStatus>('idle')
+  /** 거부를 눌렀는가. Figma "카메라 권한 없음"(14:4967) 을 보여 주고 첫 화면으로 보낸다 */
+  const [refused, setRefused] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -68,14 +71,14 @@ export default function Permission(): React.JSX.Element {
 
   function onCancel(): void {
     if (failed) window.api.posture.openCamera()
-    else navigate('/onboarding')
+    else setRefused(true)
   }
 
   return (
     <div className="relative h-full w-full bg-main1">
       <OnboardingHeader current={1} />
 
-      {/* 카메라 켜는 중: 카드 없이 화면 가운데 스피너 + 문구 (Figma 14:4339) */}
+      {/* 카메라 켜는 중 */}
       {status === 'starting' ? (
         <div className="flex h-full items-center justify-center">
           <div className="flex w-[151px] flex-col items-center gap-4">
@@ -102,6 +105,19 @@ export default function Permission(): React.JSX.Element {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 거부 */}
+      {refused && (
+        <Dialog
+          title={copyFor('denied').title}
+          body={copyFor('denied').body}
+          confirmLabel={copyFor('denied').confirm}
+          onConfirm={() => {
+            window.api.camera.openSettings()
+            navigate('/onboarding')
+          }}
+        />
       )}
     </div>
   )
