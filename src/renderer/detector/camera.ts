@@ -15,7 +15,12 @@ const FRAME_RATE = { ideal: 5, max: 10 }
  * 켜 둔 스트림의 해상도 변경(`applyConstraints`)을 거부하는 카메라가 있어서,
  * 프리뷰는 이 조건으로 카메라를 다시 연다. `ideal` 이라 못 맞추면 카메라가 알아서 가장 가까운 값을 준다.
  */
-const PREVIEW_SIZE = { width: { ideal: 1920 }, height: { ideal: 1080 } }
+const PREVIEW_SIZE = {
+  width: { ideal: 1280 },
+  height: { ideal: 960 },
+  // 감지와 같은 4:3 으로 받는다. 비율이 달라지면 같은 얼굴도 size 값이 달라진다
+  aspectRatio: { ideal: 4 / 3 }
+}
 const PREVIEW_FRAME_RATE = { ideal: 15, max: 30 }
 
 function wait(ms: number): Promise<void> {
