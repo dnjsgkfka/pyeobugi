@@ -40,6 +40,14 @@ function donutSlices(distribution: NonNullable<ReportSummary['distribution']>): 
   ]
 }
 
+/** 오늘을 보고 있으면 지금 시각(시 + 분/60), 과거·미래 날짜면 null */
+function nowHourOf(date: string): number | null {
+  const now = new Date()
+  if (kstDateString(now) !== date) return null
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+  return kst.getUTCHours() + kst.getUTCMinutes() / 60
+}
+
 /** 거북목이 감지된 시각(시 + 분/60). KST ISO 문자열을 그대로 읽는다 */
 function badHours(timeline: ReportSummary['turtleNeckTimeline']): number[] {
   if (!timeline) return []
@@ -173,6 +181,7 @@ export default function Report(): React.JSX.Element {
           <BadTimeline
             hours={badHours(data.turtleNeckTimeline)}
             summary={peakText(data.turtleNeckTimeline?.peakHours ?? [])}
+            nowHour={nowHourOf(data.date)}
           />
         </div>
       )}
