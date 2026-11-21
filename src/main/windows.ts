@@ -171,16 +171,21 @@ export function ensureDetector(): Promise<BrowserWindow> {
   const win = createDetector()
   windows.detector = win
   detectorReady = new Promise<BrowserWindow>((resolve) => {
+    // Keep a reference so the listener never touches win.webContents after the window is destroyed
+    const contents = win.webContents
     const done = (): void => {
       clearTimeout(timer)
       ipcMain.off(IPC.DETECTOR_READY, onReady)
+      win.off('closed', done)
       resolve(win)
     }
     const onReady = (event: IpcMainEvent): void => {
-      if (event.sender === win.webContents) done()
+      if (event.sender === contents) done()
     }
     const timer = setTimeout(done, READY_TIMEOUT_MS)
     ipcMain.on(IPC.DETECTOR_READY, onReady)
+    // Drop the listener as soon as the window goes away (destroyDetector before ready)
+    win.once('closed', done)
   })
   return detectorReady
 }
