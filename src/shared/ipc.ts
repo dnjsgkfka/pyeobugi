@@ -30,6 +30,9 @@ import type { Settings } from './schemas/settings'
 
 /** main / preload / renderer 가 함께 쓰는 IPC 채널과 타입. 채널 문자열은 여기서만 정의한다. */
 
+/** macOS: height (px) of the strip on top of the app window that holds the native traffic lights */
+export const MAC_TITLE_BAR_HEIGHT = 28
+
 export const WINDOW_NAMES = ['app', 'detector', 'overlay'] as const
 export type WindowName = (typeof WINDOW_NAMES)[number]
 
@@ -104,6 +107,8 @@ export const IPC = {
 export interface PreloadApi {
   app: {
     quit: () => void
+    /** macOS: native traffic lights replace the custom caption buttons */
+    isMac: boolean
   }
   window: {
     show: (name: WindowName) => void

@@ -21,7 +21,9 @@ function CaptionButton({ label, onClick, danger, children }: Props): React.JSX.E
   )
 }
 
-export function TitleBar(): React.JSX.Element {
+export function TitleBar(): React.JSX.Element | null {
+  // macOS shows its own traffic lights on the left
+  if (window.api.app.isMac) return null
   return (
     <div className="flex items-center" data-no-drag>
       <CaptionButton label="최소화" onClick={() => window.api.window.minimize()}>
