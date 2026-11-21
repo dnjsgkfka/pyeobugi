@@ -3,7 +3,12 @@ import { BubblePicker, STRETCH_EVERY_MS, type Bubble } from '@shared/bubble'
 import type { PostureView } from '@shared/ipc'
 import { moodFrom, neckFrom } from '@shared/pet'
 import { formatRemaining, type PomodoroState } from '@shared/pomodoro'
-import { DEFAULT_SETTINGS, type Sensitivity } from '@shared/schemas/settings'
+import {
+  DEFAULT_SETTINGS,
+  TURTLE_SIZE_PX,
+  type Sensitivity,
+  type Settings
+} from '@shared/schemas/settings'
 import { SpeechBubble } from '@renderer/ui/SpeechBubble'
 import './turtle.css'
 import { runTurtle, type TurtleHandle } from './turtle-animation'
@@ -26,6 +31,8 @@ export default function Overlay(): React.JSX.Element {
   const badCandidateAt = useRef<number | null>(null)
   /** 교정 강도 (목이 늘어나기 시작하는 시점이 달라진다) */
   const sensitivity = useRef<Sensitivity>(DEFAULT_SETTINGS.sensitivity)
+  // Max turtle size (px). Kept in a ref so a re-created turtle starts at the current size
+  const turtleMaxSize = useRef(TURTLE_SIZE_PX[DEFAULT_SETTINGS.turtleSize])
 
   const picker = useRef(new BubblePicker())
   /** 이미 본 종료 이벤트 id — 한 번만 축하한다 */
@@ -54,7 +61,7 @@ export default function Overlay(): React.JSX.Element {
     const root = stage.current
     if (!root || !turtleOn) return
     root.innerHTML = TURTLE_HTML
-    turtle.current = runTurtle(root)
+    turtle.current = runTurtle(root, { maxSize: turtleMaxSize.current })
     return () => {
       turtle.current?.destroy()
       turtle.current = null
@@ -64,15 +71,16 @@ export default function Overlay(): React.JSX.Element {
 
   /* 설정·뽀모도로·감지 상태를 모아 둔다 (말풍선 조건) */
   useEffect(() => {
-    void window.api.settings.get().then((settings) => {
+    const applySettings = (settings: Settings): void => {
       setTurtleOn(settings.features.overlay)
       stretchOn.current = settings.features.stretch
       sensitivity.current = settings.sensitivity
-    })
+      turtleMaxSize.current = TURTLE_SIZE_PX[settings.turtleSize]
+      turtle.current?.setMaxSize(turtleMaxSize.current)
+    }
+    void window.api.settings.get().then(applySettings)
     const offSettings = window.api.settings.onChange((settings) => {
-      setTurtleOn(settings.features.overlay)
-      stretchOn.current = settings.features.stretch
-      sensitivity.current = settings.sensitivity
+      applySettings(settings)
       if (!settings.features.overlay) picker.current.reset()
     })
 

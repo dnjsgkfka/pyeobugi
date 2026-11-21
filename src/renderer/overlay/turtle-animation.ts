@@ -21,6 +21,8 @@ export interface TurtleHandle {
   setNeck: (ratio: number) => void
   /** 혼자 돌아다닐지 */
   setWander: (on: boolean) => void
+  /** Change the max size (px) and redraw right away */
+  setMaxSize: (px: number) => void
   /** 지금 잡을 수 있는가. 목이 늘어나 있으면 false */
   canGrab: () => boolean
   /** 잡고 있는 중인가 */
@@ -40,7 +42,7 @@ export interface TurtleOptions {
 }
 
 export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): TurtleHandle {
-  const MAX_SIZE = options.maxSize ?? 120
+  let maxSize = options.maxSize ?? 120
   const $id = (id) => root.querySelector('#' + id)
   const turtle = $id('turtle'),
     hop = $id('hop'),
@@ -66,7 +68,7 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
   function layout() {
     W = root.clientWidth
     H = root.clientHeight
-    size = Math.max(80, Math.min(MAX_SIZE, W * 0.3, H * 0.3))
+    size = Math.max(80, Math.min(maxSize, W * 0.3, H * 0.3))
     // 화면 맨 아래에서 좌우로만 돌아다닌다 (작업 중인 창을 가리지 않게).
     // pos[1] 이 발끝 선(그림의 y≈400)이다. 창이 작업 표시줄 위에서 끝나므로
     // 바닥에서 아주 조금만 띄워 작업 표시줄 윗변에 붙어 선 것처럼 보이게 한다.
@@ -1284,7 +1286,8 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
     NumpadDivide: '/',
     NumpadEnter: 'Enter'
   }
-  const observer = new ResizeObserver(() => {
+  // Shared by the resize observer and setMaxSize
+  function relayout() {
     layout()
     pos = clampPos(...pos)
     place()
@@ -1292,7 +1295,8 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
       longGeo()
       renderNeck(neckD)
     }
-  })
+  }
+  const observer = new ResizeObserver(relayout)
   observer.observe(root)
   if (!reduce && !window.__noLife) life()
 
@@ -1358,6 +1362,11 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
     setWander(on) {
       auto = !!on
       manualUntil = 0
+    },
+    setMaxSize(px) {
+      if (px === maxSize) return
+      maxSize = px
+      relayout()
     },
     destroy() {
       clearInterval(sync)

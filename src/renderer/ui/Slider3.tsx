@@ -8,11 +8,13 @@ const POS = ['0%', '50%', '100%']
 export function Slider3({
   value,
   onChange,
-  labels = ['느슨하게', '보통', '엄격하게']
+  labels = ['느슨하게', '보통', '엄격하게'],
+  ariaLabel = '교정 강도'
 }: {
   value: Step
   onChange: (v: Step) => void
   labels?: [string, string, string]
+  ariaLabel?: string
 }): React.JSX.Element {
   const track = useRef<HTMLDivElement>(null)
 
@@ -63,7 +65,7 @@ export function Slider3({
         aria-valuemax={2}
         aria-valuenow={value}
         aria-valuetext={labels[value]}
-        aria-label="교정 강도"
+        aria-label={ariaLabel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onKeyDown={onKeyDown}

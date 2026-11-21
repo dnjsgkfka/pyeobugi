@@ -83,6 +83,16 @@ export default function Settings(): React.JSX.Element {
             />
           </div>
         ))}
+
+        <div className="flex flex-col gap-6">
+          <Labels title="거북이 크기" description="화면 위에 나타나는 거북이 크기를 정해요" />
+          <Slider3
+            value={settings.turtleSize as Step}
+            onChange={(value) => update({ turtleSize: value })}
+            labels={['작게', '보통', '크게']}
+            ariaLabel="거북이 크기"
+          />
+        </div>
       </Card>
     </>
   )

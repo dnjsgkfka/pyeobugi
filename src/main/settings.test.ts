@@ -46,6 +46,21 @@ describe('SettingsStore', () => {
     expect(store.value.sensitivity).toBe(DEFAULT_SETTINGS.sensitivity)
   })
 
+  it('fills turtleSize with the default when an old file does not have it', () => {
+    // Shape of settings.json written before turtleSize existed
+    const old = {
+      onboarded: true,
+      baseline: null,
+      sensitivity: 2,
+      features: DEFAULT_SETTINGS.features
+    }
+    writeFileSync(file, JSON.stringify(old), 'utf8')
+    const store = new SettingsStore(file)
+    expect(store.value.turtleSize).toBe(DEFAULT_SETTINGS.turtleSize)
+    expect(store.value.onboarded).toBe(true)
+    expect(store.value.sensitivity).toBe(2)
+  })
+
   it('값이 잘못된 파일은 기본값으로 되돌린다', () => {
     writeFileSync(file, JSON.stringify({ ...DEFAULT_SETTINGS, sensitivity: 9 }), 'utf8')
     expect(new SettingsStore(file).value.sensitivity).toBe(DEFAULT_SETTINGS.sensitivity)
