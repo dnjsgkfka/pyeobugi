@@ -28,7 +28,8 @@ function subscribe<T>(channel: string, listener: (value: T) => void): () => void
 
 const api: PreloadApi = {
   app: {
-    quit: () => ipcRenderer.send(IPC.APP_QUIT)
+    quit: () => ipcRenderer.send(IPC.APP_QUIT),
+    isMac: process.platform === 'darwin'
   },
   window: {
     show: (name: WindowName) => ipcRenderer.send(IPC.WINDOW_SHOW, name),
