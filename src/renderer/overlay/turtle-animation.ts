@@ -919,16 +919,62 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
     LG = { yT, yB, H: yB - yT, seq }
   }
   const colX = (j) => LG.seq[(j - 1) % LG.seq.length]
-  function tube(x, y1, y2) {
+
+  /*
+   * Neck SVG nodes are created once and only their attributes change per frame.
+   * Rewriting innerHTML every frame forces the browser to re-parse and rebuild these nodes (#81).
+   */
+  const SVG_NS = 'http://www.w3.org/2000/svg'
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(SVG_NS, tag)
+    for (const k in attrs) el.setAttribute(k, attrs[k])
+    return el
+  }
+  function makeTube() {
+    return {
+      rect: svgEl('rect', { fill: FILL, width: TW }),
+      line: svgEl('path', { stroke: INK, 'stroke-width': 7 })
+    }
+  }
+  function placeTube(t, x, y1, y2) {
     const l = x - TW / 2
     y1 -= 6
     y2 += 6
-    return (
-      `<rect x="${l}" y="${y1}" width="${TW}" height="${y2 - y1}" fill="${FILL}"/>` +
-      `<path d="M${l} ${y1}V${y2}M${l + TW} ${y1}V${y2}" stroke="${INK}" stroke-width="7"/>`
-    )
+    t.rect.setAttribute('x', l)
+    t.rect.setAttribute('y', y1)
+    t.rect.setAttribute('height', y2 - y1)
+    t.line.setAttribute('d', `M${l} ${y1}V${y2}M${l + TW} ${y1}V${y2}`)
   }
-  const ROOT = `<path d="${LD.rootF}" fill="${FILL}"/><path d="${LD.rootS}" stroke="${INK}" stroke-width="7"/>`
+  // Front layer: either the short neck path, or the first tube plus the root under the body
+  const shortNeck = svgEl('path', { fill: FILL, stroke: INK, 'stroke-width': 7 })
+  const frontTube = makeTube()
+  const rootFill = svgEl('path', { d: LD.rootF, fill: FILL })
+  const rootLine = svgEl('path', { d: LD.rootS, stroke: INK, 'stroke-width': 7 })
+  let frontMode = ''
+  function setFront(mode) {
+    if (mode === frontMode) return
+    frontMode = mode
+    if (mode === 'short') frontTubes.replaceChildren(shortNeck)
+    else frontTubes.replaceChildren(frontTube.rect, frontTube.line, rootFill, rootLine)
+  }
+  // Back layer: a pool of tubes. Later tubes are drawn on top, so pool order is draw order
+  const backPool = []
+  let backShown = 0
+  function setBackCount(n) {
+    while (backPool.length < n) {
+      const t = makeTube()
+      backTubes.append(t.rect, t.line)
+      backPool.push(t)
+    }
+    for (let i = 0; i < backPool.length; i++) {
+      const visible = i < n
+      if (visible === i < backShown) continue
+      const display = visible ? '' : 'none'
+      backPool[i].rect.style.display = display
+      backPool[i].line.style.display = display
+    }
+    backShown = n
+  }
   let headMode = ''
   function setHead(m) {
     // 'morph' | 'open'
@@ -947,13 +993,17 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
     a.el.style.display = ''
     a.el.setAttribute('transform', `translate(${dx.toFixed(2)} ${ty.toFixed(2)})`)
   }
+  // Last neck length drawn by renderNeck (lets the spring skip identical frames)
+  let drawnD = NaN
   function renderNeck(d) {
+    drawnD = d
     if (d < FULL) {
       const h = FULL - d,
         o0 = Math.min(1, Math.max(0, (d - 10) / 40)),
         o = o0 * o0 * (3 - 2 * o0)
-      backTubes.innerHTML = ''
-      frontTubes.innerHTML = `<path d="${neckAt(h)}" fill="${FILL}" stroke="${INK}" stroke-width="7"/>`
+      setBackCount(0)
+      setFront('short')
+      shortNeck.setAttribute('d', neckAt(h))
       setHead('morph')
       const hp = headPaths(o)
       asm[0].hf.setAttribute('d', hp.fill)
@@ -976,13 +1026,17 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
       k = 1 + Math.floor(t / LG.H)
       cb = LG.yB - (t - (k - 1) * LG.H)
     }
-    frontTubes.innerHTML = tube(C0, k === 0 ? cb : LG.yT - M, LD.YC) + ROOT // 몸에서 바로 나온 첫 줄은 몸 앞
-    let b = ''
+    setFront('long')
+    placeTube(frontTube, C0, k === 0 ? cb : LG.yT - M, LD.YC) // 몸에서 바로 나온 첫 줄은 몸 앞
     // 감겨 올라온 줄은 몸 뒤. 같은 칸을 다시 지나갈 때 아래 깔린 이전 줄도 남겨 두고 그 위에 새 줄을 그림
-    for (let j = Math.max(1, k - LG.seq.length); j < k; j++)
-      b += tube(colX(j), LG.yT - M, LG.yB + M)
-    if (k >= 1) b += tube(colX(k), cb, LG.yB + M)
-    backTubes.innerHTML = b
+    const from = Math.max(1, k - LG.seq.length)
+    let n = 0
+    for (let j = from; j < k; j++) n++
+    if (k >= 1) n++
+    setBackCount(n)
+    let i = 0
+    for (let j = from; j < k; j++) placeTube(backPool[i++], colX(j), LG.yT - M, LG.yB + M)
+    if (k >= 1) placeTube(backPool[i], colX(k), cb, LG.yB + M)
     const ty = cb - LD.YC
     putAsm(asm[0], k === 0 ? frontHeads : backHeads, (k === 0 ? C0 : colX(k)) - C0, ty)
     if (20 + ty < LG.yT)
@@ -1005,7 +1059,8 @@ export function runTurtle(root: HTMLElement, options: TurtleOptions = {}): Turtl
       neckD = neckTarget
       neckV = 0
     }
-    renderNeck(neckD)
+    // Once settled the value stops changing. Skip redrawing the same neck every frame
+    if (neckD !== drawnD) renderNeck(neckD)
     requestAnimationFrame(spring)
   }
   renderNeck(0)
