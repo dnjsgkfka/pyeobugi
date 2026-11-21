@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { HashRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import AppLayout from './AppLayout'
+import { MacTitleBar } from '@renderer/ui/MacTitleBar'
 import { useSettings } from './useSettings'
 import DevDetector from './screens/DevDetector'
 import DevGallery from './screens/DevGallery'
@@ -31,25 +32,29 @@ function App(): React.JSX.Element {
 
   return (
     <HashRouter>
-      <div className="h-full">
-        <RecalibrateFromOverlay />
-        <Routes>
-          <Route path="/" element={<Start onboarded={settings.onboarded} />} />
-          <Route path="/onboarding" element={<Intro />} />
-          <Route path="/onboarding/permission" element={<Permission />} />
-          <Route path="/onboarding/calibrate" element={<Calibrate />} />
-          {/* 설정에서 기준을 다시 잡을 때 */}
-          <Route path="/recalibrate" element={<Calibrate />} />
-          {/* 사이드바가 있는 화면들 */}
-          <Route element={<AppLayout />}>
-            <Route path="/report" element={<Report />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
-          <Route path="/dev/gallery" element={<DevGallery />} />
-          <Route path="/dev/detector" element={<DevDetector />} />
-          <Route path="/dev/mock" element={<DevMock />} />
-          <Route path="*" element={<Start onboarded={settings.onboarded} />} />
-        </Routes>
+      <div className="flex h-full flex-col">
+        <MacTitleBar />
+        {/* Screens fill whatever is left under the macOS bar */}
+        <div className="min-h-0 flex-1">
+          <RecalibrateFromOverlay />
+          <Routes>
+            <Route path="/" element={<Start onboarded={settings.onboarded} />} />
+            <Route path="/onboarding" element={<Intro />} />
+            <Route path="/onboarding/permission" element={<Permission />} />
+            <Route path="/onboarding/calibrate" element={<Calibrate />} />
+            {/* 설정에서 기준을 다시 잡을 때 */}
+            <Route path="/recalibrate" element={<Calibrate />} />
+            {/* 사이드바가 있는 화면들 */}
+            <Route element={<AppLayout />}>
+              <Route path="/report" element={<Report />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
+            <Route path="/dev/gallery" element={<DevGallery />} />
+            <Route path="/dev/detector" element={<DevDetector />} />
+            <Route path="/dev/mock" element={<DevMock />} />
+            <Route path="*" element={<Start onboarded={settings.onboarded} />} />
+          </Routes>
+        </div>
       </div>
     </HashRouter>
   )

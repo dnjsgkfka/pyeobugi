@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain, screen, shell, type IpcMainEvent } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { IPC, type WindowName } from '@shared/ipc'
+import { IPC, MAC_TITLE_BAR_HEIGHT, type WindowName } from '@shared/ipc'
 import icon from '../../resources/icon.png?asset'
 
 const windows: Partial<Record<WindowName, BrowserWindow>> = {}
@@ -37,21 +37,26 @@ function hideOnClose(win: BrowserWindow): void {
   })
 }
 
+const isMac = process.platform === 'darwin'
+/** macOS adds a title bar strip on top of the design, so the window grows by that much */
+const extraHeight = isMac ? MAC_TITLE_BAR_HEIGHT : 0
+
 function createApp(): BrowserWindow {
   const win = new BrowserWindow({
     // 디자인(1280×832)은 내용 영역 기준이다. useContentSize 가 없으면
     // 창 테두리·타이틀바만큼 내용이 줄어 스크롤이 생긴다.
     useContentSize: true,
     width: 1280,
-    height: 832,
+    height: 832 + extraHeight,
     // 디자인에 타이틀바가 없다 → 테두리 없는 창.
     // 둥근 모서리는 Windows 11 이 알아서 그려 준다 (Win10 은 각진 모서리).
-    frame: false,
+    // macOS keeps the native traffic lights. The renderer draws the bar they sit in (MacTitleBar)
+    ...(isMac ? { titleBarStyle: 'hidden' as const } : { frame: false }),
     // 타이틀 바의 '전체' 버튼을 쓰려면 창을 키울 수 있어야 한다.
     // 디자인(1280×832)보다 작아지지는 않게 최소 크기를 둔다 — 레이아웃이 고정 폭이다
     resizable: true,
     minWidth: 1280,
-    minHeight: 832,
+    minHeight: 832 + extraHeight,
     maximizable: true,
     show: false,
     title: '펴부기',
