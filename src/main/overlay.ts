@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain, type IpcMainEvent } from 'electron'
 import { BUBBLE_TYPES } from '@shared/schemas/events'
 import { IPC } from '@shared/ipc'
+import { isPaused } from './detector'
 import { buildEvent } from './events'
 import { getSettings } from './onboarding'
 import { getQueue } from './queue'
@@ -19,12 +20,13 @@ function fromOverlay(event: IpcMainEvent): boolean {
  * - 온보딩을 끝내기 전에는 띄우지 않는다 (기준 잡기 화면 위를 돌아다니면 안 된다)
  * - 오버레이를 꺼도 공부 타이머가 켜져 있으면 창은 띄운다 — 거북이 없이
  *   남은 시간만 오른쪽 아래에 보여 주기 위해서다
+ * - 트레이에서 일시정지한 동안에는 띄우지 않는다
  */
 export function applyOverlayVisibility(): void {
   const win = getWindow('overlay')
   if (!win) return
   const { onboarded, features } = getSettings().value
-  if (onboarded && (features.overlay || features.studyTimer)) win.showInactive()
+  if (onboarded && !isPaused() && (features.overlay || features.studyTimer)) win.showInactive()
   else win.hide()
 }
 

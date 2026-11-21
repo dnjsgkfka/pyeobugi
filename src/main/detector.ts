@@ -1,11 +1,16 @@
 import { BrowserWindow, ipcMain, session, shell, type IpcMainEvent } from 'electron'
 import { isDetectorCommand, isDetectorStatus, type DetectorStatus } from '@shared/detector'
 import { IPC } from '@shared/ipc'
+import { applyOverlayVisibility } from './overlay'
+import { PauseTimer } from './pause'
 import { flushUsage } from './posture'
-import { setTrayState } from './tray'
+import { refreshTrayMenu, setTrayState } from './tray'
 import { destroyDetector, ensureDetector, getWindow } from './windows'
 
 let status: DetectorStatus = 'idle'
+
+/** Tray pause. While paused the detector window is closed and the overlay is hidden */
+const pauseTimer = new PauseTimer()
 
 /**
  * 프리뷰 요청은 detector 창이 뜨기 전에 올 수 있다 (온보딩에서 자식 컴포넌트의 effect 가
@@ -57,6 +62,7 @@ function beginSession(): void {
   runningSince = Date.now()
   ticker ??= setInterval(broadcastDetection, 1_000)
   broadcastDetection()
+  refreshTrayMenu()
 }
 
 /** @param reset true 면 경과 시간을 0 으로 (종료 버튼) */
@@ -67,11 +73,53 @@ function endSession(reset: boolean): void {
   if (ticker) clearInterval(ticker)
   ticker = null
   broadcastDetection()
+  refreshTrayMenu()
 }
 
 /** 사용자가 '자세 감지 시작' 을 눌러 세션이 돌아가는 중인가 */
 export function isSessionRunning(): boolean {
   return runningSince !== null
+}
+
+export function isPaused(): boolean {
+  return pauseTimer.paused
+}
+
+export function pauseState(): { paused: boolean; until: number | null } {
+  return { paused: pauseTimer.paused, until: pauseTimer.until }
+}
+
+/** Drop the pause without restarting detection (the user stopped or restarted it another way) */
+function clearPause(): void {
+  if (!pauseTimer.paused) return
+  pauseTimer.cancel()
+  applyOverlayVisibility()
+  refreshTrayMenu()
+}
+
+/**
+ * 트레이에서 일시정지. 감지 중일 때만 동작한다.
+ * 구간을 마감하고 카메라를 끈 뒤, 시간이 지나면 resumeDetection 으로 다시 켠다.
+ * @param durationMs null 이면 사용자가 다시 켤 때까지
+ */
+export function pauseDetection(durationMs: number | null): void {
+  if (runningSince === null) return
+  flushUsage()
+  endSession(false)
+  closeDetector()
+  pauseTimer.start(durationMs, resumeDetection)
+  setTrayState('paused')
+  applyOverlayVisibility()
+  refreshTrayMenu()
+}
+
+/** 일시정지를 풀고 감지를 다시 시작한다 (시간이 다 됐거나 트레이에서 눌렀을 때) */
+export function resumeDetection(): void {
+  pauseTimer.cancel()
+  setTrayState('idle')
+  applyOverlayVisibility()
+  beginSession()
+  void openDetector()
 }
 
 /**
@@ -97,6 +145,8 @@ function fromDetector(event: IpcMainEvent): boolean {
 export function registerDetectorIpc(): void {
   ipcMain.on(IPC.DETECTOR_COMMAND, (_event, command: unknown) => {
     if (!isDetectorCommand(command)) return
+    // Any start/stop from the app window ends a tray pause
+    if (command !== 'camera') clearPause()
     if (command === 'start') beginSession()
     else if (command === 'camera') {
       // 카메라만 켠다 (기준 잡기). 세션은 시작하지 않는다
@@ -136,6 +186,7 @@ export function registerDetectorIpc(): void {
 
   // 종료 버튼: 멈추고 경과 시간도 되돌린다
   ipcMain.on(IPC.DETECTION_RESET, () => {
+    clearPause()
     flushUsage()
     setTrayState('idle')
     endSession(true)

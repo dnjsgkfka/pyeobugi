@@ -1,7 +1,14 @@
 import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { initApi } from './api'
-import { registerCameraPermissions, registerDetectorIpc } from './detector'
+import {
+  isSessionRunning,
+  pauseDetection,
+  pauseState,
+  registerCameraPermissions,
+  registerDetectorIpc,
+  resumeDetection
+} from './detector'
 import { registerIpc } from './ipc'
 import { initSettings, registerOnboardingIpc } from './onboarding'
 import { applyStudyTimer, registerPomodoroIpc } from './pomodoro'
@@ -60,7 +67,12 @@ if (!app.requestSingleInstanceLock()) {
     applyOverlayVisibility()
     // 공부 타이머를 켜 둔 채 종료했으면 다시 돌린다
     applyStudyTimer()
-    createTray()
+    createTray({
+      canPause: isSessionRunning,
+      pauseState,
+      pause: pauseDetection,
+      resume: resumeDetection
+    })
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindows()
